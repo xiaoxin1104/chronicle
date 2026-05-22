@@ -70,6 +70,7 @@ function computeInsights(rpcBalances?: { eth: string; txCount: number } | null):
 
 function WCDemoModal({ onClose, onSign }: { onClose: () => void; onSign: () => void }) {
   const [step, setStep] = useState(0)
+  const [done, setDone] = useState(false)
 
   const steps = [
     {
@@ -140,12 +141,44 @@ function WCDemoModal({ onClose, onSign }: { onClose: () => void; onSign: () => v
           </p>
           <div className="flex gap-2">
             <button onClick={() => setStep(1)} className="flex-1 rounded-full border border-border px-4 py-2 text-body-sm hover:bg-secondary">拒绝</button>
-            <button onClick={() => { onSign(); onClose() }} className="flex-1 rounded-full bg-[#007fff] px-4 py-2 text-body-sm font-medium text-white hover:opacity-90">签名并确认</button>
+            <button onClick={() => setDone(true)} className="flex-1 rounded-full bg-[#007fff] px-4 py-2 text-body-sm font-medium text-white hover:opacity-90">签名并确认</button>
           </div>
         </div>
       ),
     },
   ]
+
+  if (done) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark-surface/50 backdrop-blur-sm" onClick={onClose}>
+        <div className="mx-4 w-full max-w-md animate-soft-bloom rounded-2xl border border-success-border bg-card p-6 shadow-[var(--shadow-dialog)]" onClick={(e) => e.stopPropagation()}>
+          <div className="text-center space-y-4">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-success-surface text-3xl">✅</div>
+            <div>
+              <h3 className="text-title-sm font-bold">签名已完成 · 会话已断开</h3>
+              <p className="mt-2 text-body-sm text-muted-foreground">
+                swapExactETHForTokens 签名已通过 Token Core WASM 完成。WalletConnect 会话安全关闭，DApp 已断开连接。
+              </p>
+            </div>
+            <div className="rounded-xl bg-success-surface/50 border border-success/20 p-3">
+              <p className="text-caption text-success-text">
+                🔐 签名在本地 WASM 沙箱完成，私钥未离开设备 · Sepolia 测试网
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 rounded-full border border-border px-4 py-2 text-body-sm hover:bg-secondary">关闭</button>
+              <button onClick={() => { onSign(); onClose() }} className="flex-1 rounded-full bg-[#007fff] px-4 py-2 text-body-sm font-medium text-white hover:opacity-90">去 AI 助手演示签名</button>
+            </div>
+            <div className="flex justify-center gap-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="size-2 rounded-full bg-success" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark-surface/50 backdrop-blur-sm" onClick={onClose}>
@@ -510,7 +543,7 @@ export default function DashboardPage() {
       {showWCDemo && (
         <WCDemoModal
           onClose={() => setShowWCDemo(false)}
-          onSign={() => navigate('/assistant?q=' + encodeURIComponent('转 0.1 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1'))}
+          onSign={() => navigate('/assistant?q=' + encodeURIComponent('swap 0.1 ETH 为 USDC'))}
         />
       )}
     </div>
