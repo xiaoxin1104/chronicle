@@ -389,7 +389,8 @@ export default function AssistantPage() {
   const streamMsgId = useRef<string>('')
   const isDemoRef = useRef(false)
   const isProcessingRef = useRef(false)
-  const nonceRef = useRef(306) // Sepolia 演示地址真实 nonce 起点
+  const nonceRef = useRef(306)
+  const demoStepResolve = useRef<(() => void) | null>(null) // Sepolia 演示地址真实 nonce 起点
 
   // 注入动态钱包上下文
   useEffect(() => {
@@ -448,14 +449,20 @@ export default function AssistantPage() {
         : ['转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1']
 
       const run = async () => {
-        // 意图步骤需要更长等待让评委确认；纯分析步骤可以快一些
-        const isIntentStep = (msg: string) =>
+        const hasIntent = (msg: string) =>
           /转[账帳]?|send|换成|存入|deposit|swap|锁定/.test(msg)
         for (let i = 0; i < steps.length; i++) {
           await handleSendRef.current(steps[i])
-          // 意图步骤等 8 秒给评委看清并点击确认；分析步骤等 3 秒
-          const delay = isIntentStep(steps[i]) ? 8000 : 3000
-          await new Promise(r => setTimeout(r, delay))
+          if (hasIntent(steps[i])) {
+            // 等待用户点击确认/取消；最长等 60 秒后自动跳过
+            await new Promise<void>(r => {
+              demoStepResolve.current = r
+              setTimeout(() => { demoStepResolve.current = null; r() }, 60000)
+            })
+          } else {
+            // 纯分析步骤等 AI 回复完再给 3 秒阅读时间
+            await new Promise(r => setTimeout(r, 3000))
+          }
         }
         isDemoRef.current = false
       }
@@ -836,6 +843,10 @@ export default function AssistantPage() {
         const txHash = result.data?.txHash || result.data?.signature || '已签名'
         updateMsg({ intentStatus: 'success', intentResult: txHash })
 
+        // 演示模式：用户确认后推进下一步
+        demoStepResolve.current?.()
+        demoStepResolve.current = null
+
         // AI 主动跟进：生成交易后叙事和下一步建议
         if (hasApiKey()) {
           const intentDesc = intent.type === 'transfer'
@@ -876,6 +887,9 @@ export default function AssistantPage() {
 
   const cancelIntent = useCallback((msgId: string) => {
     setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, intent: undefined, intentStatus: undefined } : m)))
+    // 演示模式：取消也推进下一步
+    demoStepResolve.current?.()
+    demoStepResolve.current = null
   }, [])
 
   const handleClear = () => {
