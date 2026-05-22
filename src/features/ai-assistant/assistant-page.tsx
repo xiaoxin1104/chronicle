@@ -358,8 +358,9 @@ export default function AssistantPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showApiSetup, setShowApiSetup] = useState(!hasApiKey())
   const endRef = useRef<HTMLDivElement>(null)
-  // 用于跟踪最新消息 ID 的流式更新
   const streamMsgId = useRef<string>('')
+  const isDemoRef = useRef(false)
+  const isProcessingRef = useRef(false)
 
   // 注入动态钱包上下文
   useEffect(() => {
@@ -380,6 +381,7 @@ export default function AssistantPage() {
     setSearchParams({}, { replace: true })
 
     if (demo === 'transfer' || demo === 'full') {
+      isDemoRef.current = true
       const steps = demo === 'full'
         ? [
             '转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1',
@@ -388,9 +390,21 @@ export default function AssistantPage() {
           ]
         : ['转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1']
 
-      steps.forEach((msg, i) => {
-        setTimeout(() => handleSendRef.current(msg), 500 + i * 3000)
-      })
+      const run = async () => {
+        for (let i = 0; i < steps.length; i++) {
+          await new Promise(r => setTimeout(r, i === 0 ? 500 : 2000))
+          handleSendRef.current(steps[i])
+          // 等待上一步完成（poll isProcessing via ref）
+          await new Promise(r => {
+            const check = setInterval(() => {
+              if (!isProcessingRef.current) { clearInterval(check); r(undefined) }
+            }, 300)
+            setTimeout(() => { clearInterval(check); r(undefined) }, 20000)
+          })
+        }
+        isDemoRef.current = false
+      }
+      run()
     } else if (q) {
       const timer = setTimeout(() => handleSendRef.current(q), 400)
       return () => clearTimeout(timer)
@@ -418,11 +432,14 @@ export default function AssistantPage() {
 
   const handleSend = useCallback(async (text?: string) => {
     const content = (text ?? input).trim()
-    if (!content || isProcessing) return
+    // demo 模式下跳过 isProcessing 锁
+    if (!content) return
+    if (!isDemoRef.current && isProcessing) return
 
     addMessage({ role: 'user', content })
     setInput('')
-    setIsProcessing(true)
+    if (!isDemoRef.current) setIsProcessing(true)
+    isProcessingRef.current = true
 
     // 智能交易扫描：如果用户提到了交易/安全相关关键词就触发
     let txPreview: TransactionPreview | undefined
@@ -473,6 +490,7 @@ export default function AssistantPage() {
 
     streamMsgId.current = ''
     setIsProcessing(false)
+    isProcessingRef.current = false
   }, [input, isProcessing, shouldScanTx])
 
   // 使用 useRef 避免闭包问题
