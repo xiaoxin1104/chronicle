@@ -731,209 +731,158 @@ export default function AssistantPage() {
         <p className="mt-1 text-body-md text-muted-foreground">
           Intent-centric AI 钱包 — 说出你想做什么，我来执行
           {hasApiKey() && <span className="ml-2 text-success-text text-caption font-medium">● Claude 已连接</span>}
-          {!hasApiKey() && <span className="ml-2 text-warning-text text-caption">● 本地模式（Intent 交易可用）</span>}
+          {!hasApiKey() && <span className="ml-2 text-warning-text text-caption">● 本地模式</span>}
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.5fr]">
-        {/* 对话区域 */}
-        <Card className="flex h-[calc(100vh-14rem)] flex-col">
-          <CardHeader className="shrink-0">
-            <div className="flex items-center justify-between">
-              <CardTitle>💬 对话</CardTitle>
-              <div className="flex items-center gap-2">
+      <div className="mx-auto max-w-3xl">
+        {showApiSetup && (
+          <div className="mb-4">
+            <ApiKeySetup onSet={() => setShowApiSetup(false)} />
+          </div>
+        )}
+
+        <div className="flex h-[calc(100vh-13rem)] flex-col">
+          {/* 消息列表 */}
+          <div className="flex-1 space-y-6 overflow-y-auto pb-4">
+            {messages.map((msg) => (
+              <div key={msg.id} className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
+                <div className={cn(
+                  'flex size-8 shrink-0 items-center justify-center rounded-full text-sm',
+                  msg.role === 'user'
+                    ? 'bg-gradient-to-br from-[#007fff] to-[#2168db] text-white'
+                    : 'bg-gradient-to-br from-[#0cc5ff]/20 to-[#007fff]/20 text-[#007fff]',
+                )}>
+                  {msg.role === 'user' ? '👤' : '🤖'}
+                </div>
+                <div className={cn('min-w-0 max-w-[80%]', msg.role === 'user' ? 'items-end' : 'items-start')}>
+                  <div
+                    className={cn(
+                      'rounded-2xl px-4 py-3 text-body-sm',
+                      msg.role === 'user'
+                        ? 'bg-[#007fff] text-white rounded-br-md'
+                        : 'bg-card border border-border rounded-bl-md',
+                    )}
+                  >
+                    <div className="whitespace-pre-wrap leading-relaxed">
+                      {msg.content}
+                      {msg.isStreaming && <span className="animate-pulse">▍</span>}
+                    </div>
+
+                    {msg.riskLevel && msg.role === 'assistant' && !msg.isStreaming && (
+                      <div className="mt-2">
+                        <RiskBadge level={msg.riskLevel} />
+                      </div>
+                    )}
+
+                    {msg.intent && !msg.isStreaming && (
+                      <div className="mt-3">
+                        <IntentConfirmCard
+                          intent={msg.intent}
+                          intentStatus={msg.intentStatus}
+                          intentResult={msg.intentResult}
+                          onConfirm={() => executeIntent(msg.id, msg.intent!)}
+                          onCancel={() => cancelIntent(msg.id)}
+                        />
+                      </div>
+                    )}
+
+                    {!msg.intent && msg.transactionPreview && !msg.isStreaming && (
+                      <TransactionPreviewCard preview={msg.transactionPreview} />
+                    )}
+
+                    {msg.actions && !msg.isStreaming && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {msg.actions.map((a) => (
+                          <button
+                            key={a.action}
+                            className="rounded-full bg-surface-blue px-3 py-1.5 text-caption font-medium text-[#007fff] transition-colors hover:bg-[#007fff]/10"
+                            onClick={() => handleAction(a.action)}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={endRef} />
+          </div>
+
+          {/* 输入区域 */}
+          <div className="shrink-0 border-t border-border pt-4">
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {quickPrompts.slice(0, 4).map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => handleQuickPrompt(prompt)}
+                  disabled={isProcessing}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-[#007fff]/30 hover:text-[#007fff] disabled:opacity-50"
+                >
+                  {prompt.length > 20 ? prompt.slice(0, 20) + '...' : prompt}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 transition-colors focus-within:border-[#007fff]/40 focus-within:shadow-[0_0_0_3px_rgba(0,127,255,0.1)]">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder={hasApiKey() ? '告诉我想做什么... (Enter 发送，Shift+Enter 换行)' : '告诉我想做什么...'}
+                disabled={isProcessing}
+                rows={1}
+                className="flex-1 resize-none bg-transparent px-3 py-2 text-body-md outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 max-h-32"
+                style={{ minHeight: '2.5rem' }}
+              />
+              <div className="flex items-center gap-1 shrink-0">
                 {messages.length > 1 && (
                   <button
                     onClick={handleClear}
-                    className="rounded-full px-3 py-1 text-caption font-medium text-muted-foreground hover:bg-secondary transition-colors"
+                    className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary transition-colors text-sm"
+                    title="清空对话"
                   >
-                    🗑️ 清空
+                    🗑️
                   </button>
                 )}
                 {!hasApiKey() && (
                   <button
                     onClick={() => setShowApiSetup(true)}
-                    className="rounded-full px-3 py-1 text-caption font-medium bg-warning-surface text-warning-text hover:bg-warning-surface/80 transition-colors"
+                    className="flex size-9 items-center justify-center rounded-full bg-warning-surface text-warning-text hover:bg-warning-surface/80 transition-colors text-sm"
+                    title="启用 AI"
                   >
-                    + 启用 AI
+                    🔑
                   </button>
                 )}
-                <Badge variant={hasApiKey() ? 'success' : 'neutral'}>
-                  {hasApiKey() ? 'Claude' : '本地'}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-
-          {showApiSetup && (
-            <div className="px-4 pb-2">
-              <ApiKeySetup onSet={() => setShowApiSetup(false)} />
-            </div>
-          )}
-
-          <CardContent className="flex-1 space-y-4 overflow-y-auto">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                <div
-                  className={cn(
-                    'max-w-[85%] rounded-18 px-4 py-3 text-body-sm',
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground shadow-[var(--shadow-cta-sm)]'
-                      : 'bg-surface-blue text-muted-foreground',
-                  )}
-                >
-                  <div className="whitespace-pre-wrap leading-relaxed">
-                    {msg.content}
-                    {msg.isStreaming && <span className="animate-pulse">▍</span>}
-                  </div>
-
-                  {msg.riskLevel && msg.role === 'assistant' && !msg.isStreaming && (
-                    <div className="mt-2">
-                      <RiskBadge level={msg.riskLevel} />
-                    </div>
-                  )}
-
-                  {msg.intent && !msg.isStreaming && (
-                    <IntentConfirmCard
-                      intent={msg.intent}
-                      intentStatus={msg.intentStatus}
-                      intentResult={msg.intentResult}
-                      onConfirm={() => executeIntent(msg.id, msg.intent!)}
-                      onCancel={() => cancelIntent(msg.id)}
-                    />
-                  )}
-
-                  {!msg.intent && msg.transactionPreview && !msg.isStreaming && (
-                    <TransactionPreviewCard preview={msg.transactionPreview} />
-                  )}
-
-                  {msg.actions && !msg.isStreaming && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {msg.actions.map((a) => (
-                        <button
-                          key={a.action}
-                          className="rounded-full bg-card px-3 py-1 text-caption font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-                          onClick={() => handleAction(a.action)}
-                        >
-                          {a.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            <div ref={endRef} />
-          </CardContent>
-
-          {/* 输入区域 */}
-          <div className="shrink-0 border-t border-border p-4">
-            <div className="flex gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={hasApiKey() ? '输入你的问题... (回车发送)' : '输入你的问题... (本地规则引擎模式)'}
-                disabled={isProcessing}
-                className="flex-1 rounded-full border border-border bg-input-background px-4 py-2.5 text-body-md outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30 disabled:opacity-50"
-              />
-              <Button
-                variant="default"
-                size="default"
-                disabled={!input.trim() || isProcessing}
-                onClick={() => handleSend()}
-              >
-                {isProcessing ? '⏳' : '→'}
-              </Button>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {quickPrompts.map((prompt) => (
                 <button
-                  key={prompt}
-                  onClick={() => handleQuickPrompt(prompt)}
-                  disabled={isProcessing}
-                  className="rounded-full border border-border bg-card px-3 py-1 text-caption text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                  onClick={() => handleSend()}
+                  disabled={!input.trim() || isProcessing}
+                  className={`flex size-9 items-center justify-center rounded-full text-white transition-all ${
+                    input.trim()
+                      ? 'bg-[#007fff] hover:bg-[#0056b3] shadow-[var(--shadow-cta-sm)]'
+                      : 'bg-muted cursor-not-allowed'
+                  }`}
                 >
-                  {prompt}
+                  {isProcessing ? '⏳' : '↑'}
                 </button>
-              ))}
+              </div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* 侧边信息面板 */}
-        <div className="space-y-4">
-          {/* Intent 能力 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>🎯 Intent 交易能力</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { label: '自然语言转账', desc: '「转 0.1 ETH 给 0x...」', ok: true },
-                { label: '时间胶囊创建', desc: '「锁定 0.5 ETH 到 2027 年」', ok: true },
-                { label: 'Token Core 签名', desc: 'WASM 沙箱本地签名', ok: true },
-                { label: '风险扫描', desc: '无限授权/大额/未知合约检测', ok: true },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-3 rounded-xl bg-surface-cool px-3 py-2.5">
-                  <span className="text-base shrink-0">{item.ok ? '✅' : '⏳'}</span>
-                  <div className="min-w-0">
-                    <p className="text-body-sm font-medium">{item.label}</p>
-                    <p className="text-caption text-muted-foreground">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-              <div className="rounded-xl bg-gradient-to-br from-[#007fff]/[0.04] to-[#0cc5ff]/[0.04] border border-[#007fff]/15 p-3">
-                <p className="text-caption font-medium text-[#007fff]">
-                  🎉 Intent-centric 交易：传统钱包点 5 次，Chronicle 一句话 + 一键确认
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted/50 p-3 border border-border">
-                <p className="text-caption text-muted-foreground">
-                  📋 DApp 连接（WalletConnect）、Permit 签名、合约验证将在后续版本支持。当前为独立钱包模式。
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 技术栈 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>🔧 技术栈</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { label: 'create_keystore', desc: '钱包创建/导入' },
-                { label: 'derive_accounts', desc: 'BIP44 地址派生' },
-                { label: 'sign_tx', desc: '交易签名 (WASM)' },
-                { label: 'cache_keystore', desc: 'Keystore 缓存' },
-              ].map((api) => (
-                <div key={api.label} className="flex items-center gap-3 rounded-lg bg-surface-cool px-3 py-2">
-                  <code className="text-caption font-mono text-primary">{api.label}</code>
-                  <span className="text-caption text-muted-foreground">{api.desc}</span>
-                </div>
-              ))}
-              {hasApiKey() && (
-                <div className="flex items-center gap-3 rounded-lg bg-[#007fff]/[0.04] px-3 py-2 border border-[#007fff]/10">
-                  <code className="text-caption font-mono text-[#007fff]">claude-haiku-4.5</code>
-                  <span className="text-caption text-muted-foreground">流式 SSE</span>
-                </div>
-              )}
-              <div className="rounded-xl bg-[#2168db]/[0.04] border border-[#2168db]/10 p-3">
-                <p className="text-caption text-[#2168db] font-medium">
-                  🎉 imToken 十周年 AI 共创 · Intent-centric Wallet
-                </p>
-              </div>
-              {hasApiKey() && (
-                <button
-                  onClick={() => { clearApiKey(); setShowApiSetup(true); toast('API Key 已清除', { description: '已切换回本地模式' }) }}
-                  className="w-full rounded-xl bg-destructive/10 px-3 py-2 text-caption font-medium text-destructive transition-colors hover:bg-destructive/20"
-                >
-                  断开 Claude 连接
-                </button>
-              )}
-            </CardContent>
-          </Card>
+        {/* 底部信息 */}
+        <div className="mt-4 flex items-center justify-center gap-3 text-caption text-muted-foreground/60">
+          <span>🛡️ Token Core WASM · 私钥不出设备</span>
+          <span>·</span>
+          <span>Sepolia 测试网</span>
+          <span>·</span>
+          <span>imToken 十周年 AI 共创</span>
         </div>
       </div>
     </div>
