@@ -5,6 +5,7 @@ import { toast } from '@repo/ui/components/toast'
 import { useNavigate, useSearchParams } from 'react-router'
 import { quickPrompts, walletAssets, chronicleEvents } from '../../data/mock'
 import { tokenCore, isDemoWalletReady, getDemoPassword, type TransactionPreview } from '../../lib/token-core'
+import { fetchAllChainBalances } from '../../lib/etherscan'
 import { CONTRACTS, buildAaveSupplyCalldata, buildUniswapSwapCalldata, buildApproveCalldata, buildSwapPath, getTokenAddress, toTokenUnits, isProtocolAvailable, getContractAddress } from '../../lib/contracts'
 import {
   sendMessageStream,
@@ -130,17 +131,22 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
           : isNative ? 'ETH 是原生代币，不需要授权。只有 ERC20 代币需要 approve。' : '授权后该合约可从你的地址转走对应额度的代币。请确认你信任该合约。',
       }
     }
-    case 'deposit':
+    case 'deposit': {
+      const apyMap: Record<string, string> = { aave: '~4.2%', lido: '~3.1%', uniswap: '~8-15% (LP 费)' }
       return {
         title: `🏦 确认存入 ${intent.params.protocol.toUpperCase()}`,
         rows: [
           { label: '存入资产', value: `${intent.params.amount} ${intent.params.asset}` },
           { label: '目标协议', value: intent.params.protocol === 'aave' ? 'Aave V3' : intent.params.protocol === 'lido' ? 'Lido' : intent.params.protocol },
+          { label: '参考 APY', value: apyMap[intent.params.protocol] || '协议当前利率' },
           { label: '网络', value: 'Sepolia Testnet' },
           { label: 'Gas 预估', value: '~$5.00' },
         ],
-        riskNote: '确认后将资产存入 DeFi 协议。协议有智能合约风险，请自行评估。',
+        riskNote: intent.params.protocol === 'lido'
+          ? 'Lido 暂未在 Sepolia 部署，当前为概念演示。请使用 Aave V3 测试。'
+          : '确认后将资产存入 DeFi 协议获得生息代币。协议有智能合约风险。',
       }
+    }
     case 'swap':
       return {
         title: '💱 确认兑换',
@@ -166,19 +172,21 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
         ],
         riskNote: '⚠️ Permit 是链下签名，虽然不消耗 Gas，但签名后对方可在有效期内转走你的代币。请确认你完全信任该 DApp。此签名等同于 approve 授权。',
       }
-    case 'plan':
+    case 'plan': {
+      const stepLabels = intent.params.steps.map((s, i) => {
+        let desc = ''
+        if (s.type === 'swap') desc = `${s.params.fromAsset} → ${s.params.toAsset}`
+        else if (s.type === 'deposit') desc = `存入 ${s.params.amount} ${s.params.asset}`
+        else if (s.type === 'transfer') desc = `转账 ${s.params.amount} ${s.params.asset}`
+        else desc = s.type
+        return { icon: i === 0 ? '▶️' : '⏳', label: `第 ${i + 1} 步`, value: desc }
+      })
       return {
         title: `📋 交易计划 (${intent.params.steps.length} 步)`,
-        rows: intent.params.steps.map((s, i) => {
-          let val = ''
-          if (s.type === 'swap') val = `${s.params.fromAsset} → ${s.params.toAsset}`
-          else if (s.type === 'deposit') val = `存入 ${s.params.amount} ${s.params.asset} 到 ${s.params.protocol}`
-          else if (s.type === 'transfer') val = `转账 ${s.params.amount} ${s.params.asset}`
-          else val = s.type
-          return { label: `第 ${i + 1} 步`, value: val }
-        }),
-        riskNote: `共 ${intent.params.steps.length} 步交易，将依次执行。上一步成功后才执行下一步。`,
+        rows: stepLabels.map(s => ({ label: `${s.icon} ${s.label}`, value: s.value })),
+        riskNote: `共 ${intent.params.steps.length} 步将依次执行。上一步成功后才执行下一步。`,
       }
+    }
   }
 }
 
@@ -392,6 +400,34 @@ export default function AssistantPage() {
       chainCount: 4,
       securityScore: computeSecurityScore(),
       chainDays: chainDays(),
+    })
+  }, [])
+
+  // 自动多链健康报告
+  useEffect(() => {
+    if (!hasApiKey()) return
+    fetchAllChainBalances().then((balances) => {
+      const connected = balances.filter(b => b.balance !== null)
+      if (connected.length === 0) return
+      const summary = connected
+        .map(b => `${b.chain.name}: ${b.balance!.eth} ETH (${b.txCount}笔交易)`)
+        .join(' | ')
+      const report = `📊 多链健康报告已生成：\n\n${summary}\n\n这是你的实时链上数据。需要我详细分析某条链的资产状况吗？`
+      setMessages((prev) => {
+        const hasReport = prev.some(m => m.id === 'health-report')
+        if (hasReport) return prev
+        return [...prev, {
+          id: 'health-report',
+          role: 'assistant',
+          content: report,
+          timestamp: new Date().toISOString(),
+          riskLevel: 'info',
+          actions: [
+            { label: '📊 分析全部资产', action: 'analyze_portfolio' },
+            { label: '🛡️ 安全检查', action: 'go_security' },
+          ],
+        }]
+      })
     })
   }, [])
 
