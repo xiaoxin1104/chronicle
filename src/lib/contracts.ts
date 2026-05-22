@@ -33,8 +33,9 @@ const TOKEN_REGISTRY: Record<string, string> = {
 // ---------- 函数 Selector ----------
 
 export const SELECTORS = {
-  AAVE_SUPPLY: '0x617ba037',       // supply(address,uint256,address,uint16)
-  UNISWAP_SWAP_ETH_FOR_TOKENS: '0x7ff36ab5', // swapExactETHForTokens
+  AAVE_SUPPLY: '0x617ba037',
+  UNISWAP_SWAP_ETH_FOR_TOKENS: '0x7ff36ab5',
+  ERC20_APPROVE: '0x095ea7b3',     // approve(address,uint256)
 } as const
 
 // ---------- ABI 编码 ----------
@@ -102,6 +103,26 @@ export function getContractAddress(name: string): string | null {
     uniswap_v2: CONTRACTS.UNISWAP_V2_ROUTER,
   }
   return map[name.toLowerCase()] ?? null
+}
+
+/** ERC20 approve */
+export function buildApproveCalldata(spender: string, amount: string): string {
+  const sel = SELECTORS.ERC20_APPROVE.replace('0x', '')
+  return '0x' + sel + encodeAddress(spender) + encodeUint256(amount)
+}
+
+/** 获取代币小数位 */
+export function getTokenDecimals(symbol: string): number {
+  if (symbol.toUpperCase() === 'USDC' || symbol.toUpperCase() === 'USDT') return 6
+  return 18
+}
+
+/** 将人类可读金额转为链上最小单位 */
+export function toTokenUnits(amount: string, symbol: string): string {
+  const decimals = getTokenDecimals(symbol)
+  const val = parseFloat(amount)
+  if (isNaN(val)) return '0'
+  return String(Math.floor(val * Math.pow(10, decimals)))
 }
 
 /** 构造 swap 路径（ETH↔token / token↔token 均通过 WETH 中转） */

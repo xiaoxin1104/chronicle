@@ -5,7 +5,7 @@ import { toast } from '@repo/ui/components/toast'
 import { useNavigate, useSearchParams } from 'react-router'
 import { quickPrompts, walletAssets, chronicleEvents } from '../../data/mock'
 import { tokenCore, isDemoWalletReady, getDemoPassword, type TransactionPreview } from '../../lib/token-core'
-import { CONTRACTS, buildAaveSupplyCalldata, buildUniswapSwapCalldata, buildSwapPath, getTokenAddress, isProtocolAvailable, getContractAddress } from '../../lib/contracts'
+import { CONTRACTS, buildAaveSupplyCalldata, buildUniswapSwapCalldata, buildApproveCalldata, buildSwapPath, getTokenAddress, toTokenUnits, isProtocolAvailable, getContractAddress } from '../../lib/contracts'
 import {
   sendMessageStream,
   setApiKey,
@@ -112,18 +112,24 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
         ],
         riskNote: intent.params.message ? `附带留言: "${intent.params.message}"` : undefined,
       }
-    case 'approve':
+    case 'approve': {
+      const tokenAddr = getTokenAddress(intent.params.asset)
+      const isNative = !tokenAddr || tokenAddr === CONTRACTS.WETH
       return {
         title: '🔓 确认授权',
         rows: [
           { label: '授权代币', value: intent.params.asset },
-          { label: '授权额度', value: intent.params.amount === 'unlimited' ? '⚠️ 无限额度' : intent.params.amount },
+          { label: '代币合约', value: isNative ? 'ETH 无需授权' : (tokenAddr || '未知') },
+          { label: '授权额度', value: intent.params.amount === 'unlimited' ? '⚠️ 无限额度 (uint256 max)' : intent.params.amount },
           { label: '授权对象', value: intent.params.spender },
           { label: '网络', value: 'Sepolia Testnet' },
-          { label: 'Gas 预估', value: '~$3.00' },
+          { label: 'Gas 预估', value: '~$4.00' },
         ],
-        riskNote: intent.params.amount === 'unlimited' ? '⚠️ 无限额度授权极度危险！建议修改为实际需要的数量。' : '授权后该合约可支配对应额度的代币。',
+        riskNote: intent.params.amount === 'unlimited'
+          ? '⚠️ 无限额度授权极度危险！合约可无限制支配你的代币。建议改为实际需要的精确数量。'
+          : isNative ? 'ETH 是原生代币，不需要授权。只有 ERC20 代币需要 approve。' : '授权后该合约可从你的地址转走对应额度的代币。请确认你信任该合约。',
       }
+    }
     case 'deposit':
       return {
         title: `🏦 确认存入 ${intent.params.protocol.toUpperCase()}`,
@@ -581,7 +587,16 @@ export default function AssistantPage() {
           break
         }
 
-        case 'approve':
+        case 'approve': {
+          const tokenAddr = getTokenAddress(intent.params.asset)
+          if (!tokenAddr || tokenAddr === CONTRACTS.WETH) {
+            updateMsg({ intentStatus: 'failed', intentResult: 'ETH 不需要授权，只有 ERC20 代币（USDC/USDT/DAI）需要 approve' })
+            return
+          }
+          const approveAmount = intent.params.amount === 'unlimited'
+            ? '115792089237316195423570985008687907853269984665640564039457584007913129639935' // uint256 max
+            : toTokenUnits(intent.params.amount, intent.params.asset)
+          const appCalldata = buildApproveCalldata(intent.params.spender, approveAmount)
           result = await tokenCore.signTransaction({
             password: getDemoPassword(),
             chain: 'ETHEREUM',
@@ -589,14 +604,15 @@ export default function AssistantPage() {
             input: {
               nonce: String(Date.now() % 1000),
               gasPrice: '20000000000',
-              gasLimit: '50000',
-              to: intent.params.spender,
+              gasLimit: '60000',
+              to: tokenAddr,
               value: '0',
-              data: `0x095ea7b3${intent.params.spender.slice(2).padStart(64, '0')}${intent.params.amount === 'unlimited' ? 'f'.repeat(64) : String(Math.floor(parseFloat(intent.params.amount) * 1e6)).padStart(64, '0')}`,
+              data: appCalldata,
               chainId: '11155111',
             },
           })
           break
+        }
 
         case 'deposit': {
           const proto = intent.params.protocol.toLowerCase()
@@ -671,11 +687,37 @@ export default function AssistantPage() {
               intentResult: `执行中: 第 ${i + 1}/${steps.length} 步...`,
             })
             try {
+              // 根据步骤类型构造正确的 calldata
+              let stepTo: string = CONTRACTS.AAVE_V3_POOL
+              let stepValue = '0'
+              let stepData = ''
+              let stepGas = '250000'
               const stepAmt = 'amount' in step.params ? (step.params as { amount: string }).amount : '0'
-              const stepTo = 'to' in step.params ? (step.params as { to: string }).to
-                : 'recipient' in step.params ? (step.params as { recipient: string }).recipient
-                : 'spender' in step.params ? (step.params as { spender: string }).spender
-                : CONTRACTS.AAVE_V3_POOL
+
+              if (step.type === 'transfer') {
+                stepTo = (step.params as { to: string }).to
+                stepValue = ethToWei(stepAmt)
+                stepGas = '21000'
+              } else if (step.type === 'swap') {
+                const sp = step.params as { fromAsset: string; toAsset: string; amount: string }
+                const sPath = buildSwapPath(sp.fromAsset, sp.toAsset)
+                if (sPath) {
+                  stepTo = CONTRACTS.UNISWAP_V2_ROUTER
+                  stepValue = sp.fromAsset === 'ETH' ? ethToWei(sp.amount) : '0'
+                  stepData = buildUniswapSwapCalldata('0', sPath, '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', Math.floor(Date.now() / 1000) + 3600)
+                }
+              } else if (step.type === 'deposit') {
+                const dp = step.params as { protocol: string; asset: string; amount: string }
+                const protoAddr = getContractAddress(dp.protocol)
+                if (protoAddr && isProtocolAvailable(dp.protocol)) {
+                  const dAssetAddr = dp.asset === 'ETH' ? CONTRACTS.WETH : (getTokenAddress(dp.asset) || CONTRACTS.USDC)
+                  const dAmount = dp.asset === 'ETH' ? ethToWei(dp.amount) : toTokenUnits(dp.amount, dp.asset)
+                  stepTo = protoAddr
+                  stepValue = dp.asset === 'ETH' ? ethToWei(dp.amount) : '0'
+                  stepData = buildAaveSupplyCalldata(dAssetAddr, dAmount, '0x9858EfFD232B4033E47d90003D41EC34EcaEda94')
+                }
+              }
+
               const stepResult = await tokenCore.signTransaction({
                 password: getDemoPassword(),
                 chain: 'ETHEREUM',
@@ -683,9 +725,10 @@ export default function AssistantPage() {
                 input: {
                   nonce: String(Date.now() % 1000 + i),
                   gasPrice: '20000000000',
-                  gasLimit: '21000',
+                  gasLimit: stepGas,
                   to: stepTo,
-                  value: ethToWei(stepAmt),
+                  value: stepValue,
+                  ...(stepData ? { data: stepData } : {}),
                   chainId: '11155111',
                 },
               })

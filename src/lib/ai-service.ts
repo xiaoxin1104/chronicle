@@ -663,16 +663,19 @@ function buildLocalIntent(userMessage: string): WalletIntent | undefined {
     }
   }
 
-  // 匹配授权
-  const approveRe = /(?:授权|approve)\s*([\d.]+|无限)\s*(ETH|USDC|IMT|BTC)?\s*(?:给|到|至|to)?\s*(0x[a-fA-F0-9]{40})?/i
+  // 匹配授权: "授权 100 USDC 给 0x..."
+  const approveRe = /(?:授权|approve)\s*([\d.]+|无限)?\s*(USDC|USDT|DAI|ETH|IMT|BTC)?\s*(?:给|到|至|to)?\s*(0x[a-fA-F0-9]{40})?/i
   const aMatch = msg.match(approveRe)
   if (aMatch) {
+    const asset = (aMatch[2] || 'USDC').toUpperCase()
+    // 尝试从消息中提取 spender 地址（如果没匹配到默认用 Uniswap Router）
+    const spenderMatch = msg.match(/0x[a-fA-F0-9]{40}/)
     return {
       type: 'approve',
       params: {
-        amount: aMatch[1] === '无限' ? 'unlimited' : (aMatch[1] || '0'),
-        asset: aMatch[2] || 'ETH',
-        spender: aMatch[3] || '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+        amount: aMatch[1] === '无限' ? 'unlimited' : (aMatch[1] || '100'),
+        asset,
+        spender: spenderMatch?.[0] || '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008',
       },
     }
   }
