@@ -1,5 +1,3 @@
-import type { RiskLevel } from '../lib/token-core'
-
 // ---------- Wallet assets ----------
 
 export interface Asset {
@@ -130,29 +128,6 @@ export const timeCapsules: TimeCapsule[] = [
   },
   {
     id: 'cap-004', title: '新年礼物', asset: 'IMT', amount: '100', unlockDate: '2026-05-25T00:00:00Z', recipient: ADDR.bob, message: '老友，这是给你的十周年礼物。感谢一路相伴。', status: 'unlocking', createdAt: '2026-02-14T12:00:00Z', progress: 88,
-  },
-]
-
-// ---------- AI chat messages ----------
-
-export interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-  riskLevel?: RiskLevel
-  actions?: { label: string; action: string }[]
-}
-
-export const initialChatMessages: ChatMessage[] = [
-  {
-    id: 'msg-01', role: 'assistant',
-    content: '你好！我是 Chronicle AI 守护助手 🤖\n\n我可以帮你：\n• 用自然语言创建时间胶囊\n• 分析链上交易风险\n• 总结你的资产和活动\n• 推荐安全的 DeFi 策略\n\n试试说「帮我创建一个时间胶囊」或「分析一下我最近的活动」吧！',
-    timestamp: new Date().toISOString(), riskLevel: 'info',
-    actions: [
-      { label: '创建时间胶囊', action: 'create_capsule' },
-      { label: '查看资产分析', action: 'analyze_portfolio' },
-    ],
   },
 ]
 

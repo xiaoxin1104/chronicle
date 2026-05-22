@@ -60,7 +60,7 @@ function generateNarrative(events: ChronicleEvent[]): NarrativeSummary {
   }
   return {
     title: '链上旅程刚刚开始',
-    content: `你的链上编年史记录着 ${chronicleEvents.length} 个值得记忆的时刻。每一个链上操作都是你数字身份的一笔。继续探索，让故事更丰富。`,
+    content: `你的链上编年史记录着 ${events.length} 个值得记忆的时刻。每一个链上操作都是你数字身份的一笔。继续探索，让故事更丰富。`,
     mood: '新手探索期',
     highlight: '期待你的第一个 DeFi 里程碑',
   }
