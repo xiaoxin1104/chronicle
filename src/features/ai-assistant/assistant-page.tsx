@@ -90,7 +90,7 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
         title: '📤 确认转账',
         rows: [
           { label: '金额', value: `${intent.params.amount} ${intent.params.asset}` },
-          { label: '接收地址', value: `${intent.params.to.slice(0, 10)}...${intent.params.to.slice(-6)}` },
+          { label: '接收地址', value: intent.params.to },
           { label: '网络', value: 'Sepolia Testnet' },
           { label: 'Gas 预估', value: '~$2.40' },
         ],
@@ -102,7 +102,7 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
         rows: [
           { label: '锁定资产', value: `${intent.params.amount} ${intent.params.asset}` },
           { label: '解锁日期', value: intent.params.unlockDate.slice(0, 10) },
-          { label: '接收地址', value: `${intent.params.recipient.slice(0, 10)}...${intent.params.recipient.slice(-6)}` },
+          { label: '接收地址', value: intent.params.recipient },
           { label: '网络', value: 'Sepolia Testnet' },
           { label: 'Gas 预估', value: '~$2.40' },
         ],
@@ -114,7 +114,7 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
         rows: [
           { label: '授权代币', value: intent.params.asset },
           { label: '授权额度', value: intent.params.amount === 'unlimited' ? '⚠️ 无限额度' : intent.params.amount },
-          { label: '授权对象', value: `${intent.params.spender.slice(0, 10)}...${intent.params.spender.slice(-6)}` },
+          { label: '授权对象', value: intent.params.spender },
           { label: '网络', value: 'Sepolia Testnet' },
           { label: 'Gas 预估', value: '~$3.00' },
         ],
@@ -166,12 +166,27 @@ function IntentConfirmCard({
     >
       <p className="text-body-sm font-semibold">{preview.title}</p>
       <div className="mt-3 space-y-2 text-body-sm">
-        {preview.rows.map((r) => (
-          <div key={r.label} className="flex justify-between">
-            <span className="text-muted-foreground">{r.label}</span>
-            <span className="font-medium font-mono text-xs">{r.value}</span>
-          </div>
-        ))}
+        {preview.rows.map((r) => {
+          const isAddress = r.value.startsWith('0x') && r.value.length >= 40
+          return (
+            <div key={r.label} className="flex justify-between items-center gap-2">
+              <span className="text-muted-foreground shrink-0">{r.label}</span>
+              <span
+                className={`font-medium text-xs text-right ${isAddress ? 'font-mono break-all cursor-pointer hover:text-[#007fff] transition-colors' : ''}`}
+                title={isAddress ? '点击复制地址' : undefined}
+                onClick={() => {
+                  if (isAddress) {
+                    navigator.clipboard.writeText(r.value)
+                    toast('已复制', { description: r.value.slice(0, 20) + '...' })
+                  }
+                }}
+              >
+                {r.value}
+                {isAddress && <span className="ml-1 text-2xs text-muted-foreground">📋</span>}
+              </span>
+            </div>
+          )
+        })}
       </div>
       {preview.riskNote && (
         <div
@@ -319,15 +334,20 @@ export default function AssistantPage() {
     })
   }, [])
 
-  // 读取来自仪表盘的快捷输入
+  // 读取来自仪表盘的快捷输入 / 演示模式
   useEffect(() => {
     const q = searchParams.get('q')
-    if (q) {
-      setSearchParams({}, { replace: true })
-      // 延时确保组件完全挂载
-      const timer = setTimeout(() => handleSendRef.current(q), 300)
-      return () => clearTimeout(timer)
-    }
+    const demo = searchParams.get('demo')
+    setSearchParams({}, { replace: true })
+
+    const timer = setTimeout(() => {
+      if (demo === 'transfer') {
+        handleSendRef.current('转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1')
+      } else if (q) {
+        handleSendRef.current(q)
+      }
+    }, 400)
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -732,6 +752,11 @@ export default function AssistantPage() {
               <div className="rounded-xl bg-gradient-to-br from-[#007fff]/[0.04] to-[#0cc5ff]/[0.04] border border-[#007fff]/15 p-3">
                 <p className="text-caption font-medium text-[#007fff]">
                   🎉 Intent-centric 交易：传统钱包点 5 次，Chronicle 一句话 + 一键确认
+                </p>
+              </div>
+              <div className="rounded-xl bg-muted/50 p-3 border border-border">
+                <p className="text-caption text-muted-foreground">
+                  📋 DApp 连接（WalletConnect）、Permit 签名、合约验证将在后续版本支持。当前为独立钱包模式。
                 </p>
               </div>
             </CardContent>

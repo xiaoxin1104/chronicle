@@ -498,9 +498,15 @@ export default function CapsulePage() {
               </Button>
             </div>
 
+            <div className="rounded-xl bg-gradient-to-br from-[#007fff]/[0.04] to-[#0cc5ff]/[0.04] border border-[#007fff]/15 p-4">
+              <p className="text-body-sm font-semibold text-[#007fff] mb-2">🔧 技术路线</p>
+              <p className="text-body-sm text-muted-foreground leading-relaxed">
+                当前版本在 Sepolia 测试网以 UI 概念演示时间锁定。生产环境计划部署 OpenZeppelin TimelockController 合约——资产存入后在未来时间点之前无法被任何人（包括创建者）提取，实现真正的链上时间锁定。Token Core 签名层已就绪，仅需部署合约即可升级。
+              </p>
+            </div>
             <div className="rounded-xl bg-warning-surface/50 border border-warning/20 p-3">
               <p className="text-body-sm text-warning-text">
-                ⚠️ 演示使用 Sepolia 测试网，时间锁定为 UI 概念展示。生产级实现需部署链上 Timelock 合约。
+                ⚠️ 演示使用 Sepolia 测试网，请勿存入真实资产。
               </p>
             </div>
           </CardContent>

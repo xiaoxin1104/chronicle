@@ -101,6 +101,10 @@ export default function DashboardPage() {
     navigate(`/assistant?q=${encodeURIComponent(prompt)}`)
   }
 
+  const handleDemoStart = () => {
+    navigate('/assistant?demo=transfer')
+  }
+
   const handleInsightClick = (prompt: string) => {
     navigate(`/assistant?q=${encodeURIComponent(prompt)}`)
   }
@@ -148,6 +152,23 @@ export default function DashboardPage() {
           {rpcReady
             ? `⚡ Sepolia 实时 · 区块 #${networkInfo?.blockNumber?.toLocaleString() ?? '...'} · ${networkInfo?.gasPrice ?? '...'} Gwei`
             : '⚡ 演示环境 · 模拟数据为基础，可选接入 Sepolia RPC'}
+        </p>
+
+        {/* 演示按钮 — 评委入口 */}
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={handleDemoStart}
+            className={`group inline-flex items-center gap-3 rounded-full px-8 py-4 text-body-lg font-bold text-white transition-all duration-300 ${BRAND_GRADIENT} shadow-[var(--shadow-cta)] hover:shadow-[var(--shadow-cta-lg)] hover:scale-105 active:scale-95`}
+          >
+            <span className="text-2xl">▶</span>
+            <span>开始演示</span>
+            <span className="text-body-sm font-normal text-white/70 border-l border-white/20 pl-3 ml-1">
+              2 分钟了解核心能力
+            </span>
+          </button>
+        </div>
+        <p className="mt-3 text-caption text-muted-foreground">
+          点击按钮 → AI 自动为你演示一笔转账的完整 Intent 交易流程
         </p>
 
         {/* AI 输入框 */}
@@ -255,9 +276,22 @@ export default function DashboardPage() {
                   <p className="text-title-md font-bold">{liveBalance.eth} ETH</p>
                   <span className="text-caption text-muted-foreground">Sepolia 实时</span>
                 </div>
-                <p className="mt-1 text-caption text-muted-foreground font-mono">
-                  {DEMO_ADDRESS.slice(0, 10)}...{DEMO_ADDRESS.slice(-6)}
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-caption text-muted-foreground font-mono">
+                    {DEMO_ADDRESS}
+                  </p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(DEMO_ADDRESS)
+                      // dynamic import for toast
+                      import('@repo/ui/components/toast').then(m => m.toast('已复制地址', { description: '转账前请核对完整地址' }))
+                    }}
+                    className="shrink-0 rounded-lg px-2 py-1 text-caption text-[#007fff] hover:bg-[#007fff]/10 transition-colors"
+                    title="复制地址"
+                  >
+                    📋
+                  </button>
+                </div>
                 <p className="mt-3 text-caption text-muted-foreground">
                   {Number(liveBalance.eth) === 0
                     ? '↑ 此演示地址暂无 Sepolia ETH。可前往 sepoliafaucet.com 获取测试币 · '
