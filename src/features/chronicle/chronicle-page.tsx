@@ -176,12 +176,16 @@ export default function ChroniclePage() {
   const apiConnected = hasApiKey()
   const rpcReady = isRpcAvailable()
 
+  // 合并数据（必须在 AI 叙事 useEffect 之前定义）
+  const allEvents = useMemo(() => chronicleEvents, [])
+
   // AI 生成叙事（有 Claude 时用真实 AI）
   const [aiNarrative, setAiNarrative] = useState<NarrativeSummary | null>(null)
   const [narrativeLoading, setNarrativeLoading] = useState(false)
 
   useEffect(() => {
     if (!apiConnected) return
+    if (allEvents.length === 0) return
     setNarrativeLoading(true)
     const eventsSummary = allEvents
       .slice(0, 10)
@@ -198,7 +202,7 @@ export default function ChroniclePage() {
       } catch { /* fallback to static */ }
       setNarrativeLoading(false)
     })
-  }, [apiConnected])
+  }, [apiConnected, allEvents])
 
   // 获取真实交易计数
   useEffect(() => {
@@ -206,9 +210,6 @@ export default function ChroniclePage() {
       if (count !== null) setRealTxCount(count)
     })
   }, [])
-
-  // 合并数据
-  const allEvents = useMemo(() => chronicleEvents, [])
 
   const filteredEvents = useMemo(() => {
     if (filter === 'all') return allEvents

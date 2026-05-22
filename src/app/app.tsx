@@ -19,8 +19,7 @@ import { initDemoWallet } from '../lib/token-core'
 const BRAND_GRADIENT = 'bg-gradient-to-r from-[#007fff] via-[#2168db] to-[#0cc5ff]'
 const BRAND_GLOW = 'shadow-[0_8px_32px_rgba(0,127,255,0.25)]'
 
-function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false)
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const location = useLocation()
 
   return (
@@ -93,7 +92,7 @@ function Sidebar() {
         </div>
 
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={onToggle}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
         >
           <span className="text-base shrink-0">{collapsed ? '☰' : '◀'}</span>
@@ -127,6 +126,7 @@ function ThemeToggle() {
 
 function AppLayout() {
   const [walletStatus, setWalletStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     initDemoWallet().then((r) => {
@@ -136,11 +136,11 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-surface-page text-foreground">
-      <Sidebar />
+      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
       <div
         className="transition-all duration-300"
-        style={{ paddingLeft: 252 }}
+        style={{ paddingLeft: sidebarCollapsed ? 68 : 252 }}
       >
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-surface-page/80 px-8 backdrop-blur-sm">
