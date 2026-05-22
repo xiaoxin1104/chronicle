@@ -843,9 +843,11 @@ export default function AssistantPage() {
         const txHash = result.data?.txHash || result.data?.signature || '已签名'
         updateMsg({ intentStatus: 'success', intentResult: txHash })
 
-        // 演示模式：用户确认后推进下一步
-        demoStepResolve.current?.()
-        demoStepResolve.current = null
+        // 演示模式：用户确认后等 3 秒让评委看清成功状态，再推进
+        setTimeout(() => {
+          demoStepResolve.current?.()
+          demoStepResolve.current = null
+        }, 3000)
 
         // AI 主动跟进：生成交易后叙事和下一步建议
         if (hasApiKey()) {
@@ -887,7 +889,7 @@ export default function AssistantPage() {
 
   const cancelIntent = useCallback((msgId: string) => {
     setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, intent: undefined, intentStatus: undefined } : m)))
-    // 演示模式：取消也推进下一步
+    // 演示模式：取消直接推进下一步（无需等待）
     demoStepResolve.current?.()
     demoStepResolve.current = null
   }, [])
