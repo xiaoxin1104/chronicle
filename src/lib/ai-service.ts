@@ -54,7 +54,12 @@ export interface PlanIntent {
   params: { description: string; steps: WalletIntent[] }
 }
 
-export type WalletIntent = TransferIntent | CapsuleIntent | ApproveIntent | DepositIntent | SwapIntent | PlanIntent
+export interface PermitIntent {
+  type: 'permit'
+  params: { asset: string; amount: string; spender: string; domain: string; deadline: number }
+}
+
+export type WalletIntent = TransferIntent | CapsuleIntent | ApproveIntent | DepositIntent | SwapIntent | PlanIntent | PermitIntent
 
 export interface WalletContext {
   totalBalance: string
@@ -129,7 +134,8 @@ const SYSTEM_PROMPT = `你是 Chronicle AI 守护助手，一个专注于 Web3 �
 
 支持的类型：
 - transfer: 转账。params: { asset, amount, to }
-- approve: 授权。params: { asset, amount, spender }
+- approve: 链上授权(ERC20 approve)。params: { asset, amount, spender }
+- permit: 链下授权(EIP-2612 Permit签名)。params: { asset, amount, spender, domain("Uniswap"/"Aave"/"1inch"), deadline(Unix时间戳) }
 - capsule: 创建时间胶囊。params: { asset, amount, unlockDate(ISO), recipient, message(可选) }
 - deposit: DeFi 存款到协议。params: { protocol(aave/lido/uniswap), asset, amount }
 - swap: 代币兑换。params: { fromAsset, toAsset, amount }
@@ -483,6 +489,14 @@ function fallbackResponse(userMessage: string): AIResponse {
       intent: localIntent,
     }
   }
+  if (localIntent?.type === 'permit') {
+    const p = localIntent.params
+    return {
+      content: `⚠️ Permit 链下签名请求：\n\n🔏 EIP-712 Permit 授权\n📋 代币: ${p.amount} ${p.asset}\n🏦 DApp: ${p.domain}\n🎯 授权对象: ${p.spender.slice(0, 10)}...${p.spender.slice(-4)}\n⏰ 有效期: 24 小时\n⛽ Gas: 0（链下签名）\n\n⚠️ Permit 签名无需 Gas，但同样可转移你的代币。请确认这是你信任的 DApp。\n\n签名预览已生成——这是链下签名，不会立即上链。`,
+      riskLevel: 'warning',
+      intent: localIntent,
+    }
+  }
   if (localIntent?.type === 'plan') {
     const p = localIntent.params
     const stepDescs = p.steps.map((s, i) => {
@@ -707,6 +721,23 @@ function buildLocalIntent(userMessage: string): WalletIntent | undefined {
     return {
       type: 'swap',
       params: { fromAsset, toAsset, amount },
+    }
+  }
+
+  // 匹配 Permit 签名: "Permit 授权 100 USDC 给 Uniswap"
+  const permitRe = /(?:permit|链下授权|eip-?712|gasless.*approve)\s*([\d.]+)?\s*(USDC|USDT|DAI|ETH)?\s*(?:给|到|至|for)?\s*(Uniswap|Aave|1inch)?/i
+  const pMatch = msg.match(permitRe)
+  if (pMatch) {
+    const protoMap: Record<string, string> = { uniswap: 'Uniswap', aave: 'Aave', '1inch': '1inch' }
+    return {
+      type: 'permit',
+      params: {
+        asset: (pMatch[2] || 'USDC').toUpperCase(),
+        amount: pMatch[1] || '100',
+        spender: '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008',
+        domain: protoMap[(pMatch[3] || 'uniswap').toLowerCase()] || 'Uniswap',
+        deadline: Math.floor(Date.now() / 1000) + 86400,
+      },
     }
   }
 

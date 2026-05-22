@@ -20,7 +20,7 @@ import {
   type AIResponse,
   type WalletIntent,
 } from '../../lib/ai-service'
-import type { TransferIntent, CapsuleIntent, DepositIntent, SwapIntent } from '../../lib/ai-service'
+import type { TransferIntent, CapsuleIntent, DepositIntent, SwapIntent, PermitIntent } from '../../lib/ai-service'
 import { cn } from '../../lib/utils'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
@@ -152,6 +152,20 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
         ],
         riskNote: '兑换价格为实时市场价，存在滑点。此为测试网演示。',
       }
+    case 'permit':
+      return {
+        title: '🔏 确认 Permit 链下签名（EIP-712）',
+        rows: [
+          { label: '签名类型', value: 'EIP-712 Permit（链下）' },
+          { label: '授权代币', value: intent.params.asset },
+          { label: '授权额度', value: intent.params.amount },
+          { label: '授权对象', value: intent.params.spender },
+          { label: 'DApp 域名', value: intent.params.domain },
+          { label: '有效期', value: '24 小时' },
+          { label: 'Gas 费用', value: '0（链下签名不消耗 Gas）' },
+        ],
+        riskNote: '⚠️ Permit 是链下签名，虽然不消耗 Gas，但签名后对方可在有效期内转走你的代币。请确认你完全信任该 DApp。此签名等同于 approve 授权。',
+      }
     case 'plan':
       return {
         title: `📋 交易计划 (${intent.params.steps.length} 步)`,
@@ -182,7 +196,7 @@ function IntentConfirmCard({
   onCancel: () => void
 }) {
   const preview = intentToPreview(intent)
-  const isDanger = intent.type === 'approve' && intent.params.amount === 'unlimited'
+  const isDanger = (intent.type === 'approve' && intent.params.amount === 'unlimited') || intent.type === 'permit'
 
   if (intentStatus === 'success') {
     return (
@@ -675,6 +689,34 @@ export default function AssistantPage() {
               chainId: '11155111',
             },
           })
+          break
+        }
+
+        case 'permit': {
+          // EIP-712 Permit 链下签名（演示模式：用标准交易签名模拟 Permit 签名流程）
+          // 生产环境应使用 eth_signTypedData 进行真正的 EIP-712 签名
+          result = await tokenCore.signTransaction({
+            password: getDemoPassword(),
+            chain: 'ETHEREUM',
+            derivationPath: "m/44'/60'/0'/0/0",
+            input: {
+              nonce: String(nonceRef.current++),
+              gasPrice: '0',
+              gasLimit: '0',
+              to: intent.params.spender,
+              value: '0',
+              data: '0x',
+              chainId: '11155111',
+            },
+          })
+          // 覆盖成功信息：说明这是 Permit 签名
+          if (result.success) {
+            updateMsg({
+              intentStatus: 'success',
+              intentResult: `Permit 签名已完成 (模拟 EIP-712): ${result.data?.signature?.slice(0, 20) || '已签名'}...`,
+            })
+            return
+          }
           break
         }
 
