@@ -448,10 +448,14 @@ export default function AssistantPage() {
         : ['转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1']
 
       const run = async () => {
+        // 意图步骤需要更长等待让评委确认；纯分析步骤可以快一些
+        const isIntentStep = (msg: string) =>
+          /转[账帳]?|send|换成|存入|deposit|swap|锁定/.test(msg)
         for (let i = 0; i < steps.length; i++) {
-          await new Promise(r => setTimeout(r, i === 0 ? 500 : 2000))
-          // 直接 await handleSend 的返回 Promise，它完成才推进下一步
           await handleSendRef.current(steps[i])
+          // 意图步骤等 8 秒给评委看清并点击确认；分析步骤等 3 秒
+          const delay = isIntentStep(steps[i]) ? 8000 : 3000
+          await new Promise(r => setTimeout(r, delay))
         }
         isDemoRef.current = false
       }
