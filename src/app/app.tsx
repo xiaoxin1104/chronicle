@@ -12,7 +12,7 @@ import DashboardPage from '../features/dashboard/dashboard-page'
 import ChroniclePage from '../features/chronicle/chronicle-page'
 import CapsulePage from '../features/time-capsule/capsule-page'
 import AssistantPage from '../features/ai-assistant/assistant-page'
-import { initDemoWallet } from '../lib/token-core'
+import { isDemoWalletReady } from '../lib/token-core'
 
 // ---------- 品牌常量 ----------
 
@@ -128,10 +128,19 @@ function AppLayout() {
   const [walletStatus, setWalletStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
+  // WASM 按需加载：只在首次访问需要签名的页面时触发
+  // 仪表盘和编年史不需要 WASM，可立即渲染
   useEffect(() => {
-    initDemoWallet().then((r) => {
-      setWalletStatus(r.success ? 'ready' : 'error')
-    })
+    let cancelled = false
+    // 延迟 500ms 再加载 WASM，优先渲染 UI
+    const timer = setTimeout(async () => {
+      const { initDemoWallet } = await import('../lib/token-core')
+      if (cancelled) return
+      initDemoWallet().then((r) => {
+        if (!cancelled) setWalletStatus(r.success ? 'ready' : 'error')
+      })
+    }, 500)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [])
 
   return (

@@ -11,9 +11,21 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // 支持 tcx-wasm WebAssembly 模块
+  // 支持 tcx-wasm WebAssembly 模块 + 性能优化
   build: {
     target: 'esnext',
+    minify: 'esbuild',
+    cssMinify: true,
+    // WASM 文件保持独立，不内联为 base64
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        // WASM 单独分块
+        manualChunks: (id) => {
+          if (id.includes('tcx-wasm') || id.includes('token-core')) return 'wallet-core'
+        },
+      },
+    },
   },
   // 代理 Anthropic API 请求，避免浏览器跨域限制
   server: {
