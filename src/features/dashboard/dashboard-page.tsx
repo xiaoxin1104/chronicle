@@ -105,7 +105,7 @@ export default function DashboardPage() {
   }
 
   const handleDemoStart = () => {
-    navigate('/assistant?demo=transfer')
+    navigate('/assistant?demo=full')
   }
 
   const handleInsightClick = (prompt: string) => {
@@ -157,8 +157,29 @@ export default function DashboardPage() {
             : '⚡ 演示环境 · 模拟数据为基础，可选接入 Sepolia RPC'}
         </p>
 
+        {/* AI 能力展示 */}
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {[
+            { icon: '💸', label: '转账', prompt: '转 0.05 ETH 给 0x742d...' },
+            { icon: '🔀', label: '兑换', prompt: '换 0.1 ETH 为 USDC' },
+            { icon: '🏦', label: 'DeFi', prompt: '存入 100 USDC 到 Aave' },
+            { icon: '⏳', label: '时间胶囊', prompt: '锁定 0.5 ETH 到 2027 年' },
+            { icon: '📊', label: '资产分析', prompt: '分析我的资产分布' },
+            { icon: '🛡️', label: '安全检查', prompt: '检查我的钱包安全' },
+          ].map((cap) => (
+            <button
+              key={cap.label}
+              onClick={() => navigate(`/assistant?q=${encodeURIComponent(cap.prompt)}`)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-caption font-medium text-foreground transition-all hover:border-[#007fff]/30 hover:bg-[#007fff]/[0.04] hover:text-[#007fff] hover:shadow-[var(--shadow-card)]"
+            >
+              <span className="text-sm">{cap.icon}</span>
+              <span>{cap.label}</span>
+            </button>
+          ))}
+        </div>
+
         {/* AI 输入框 — 主交互入口 */}
-        <div className="mt-6 mx-auto max-w-xl">
+        <div className="mt-4 mx-auto max-w-xl">
           <div className={`flex items-center gap-2 rounded-2xl border bg-card p-2 transition-all duration-300 ${
             isTyping
               ? 'border-[#007fff]/40 shadow-[0_0_0_4px_rgba(0,127,255,0.1)]'
@@ -208,7 +229,7 @@ export default function DashboardPage() {
         {/* 演示按钮 — 在快捷操作下方，不抢输入框的视觉焦点 */}
         <div className="mt-3 flex justify-center gap-3">
           <button onClick={handleDemoStart} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-body-sm font-medium text-white transition-all duration-300 ${BRAND_GRADIENT} hover:opacity-90 hover:shadow-[var(--shadow-cta-sm)]`}>
-            <span>▶</span><span>演示转账</span>
+            <span>▶</span><span>60 秒全流程演示</span>
           </button>
           <button onClick={() => navigate('/assistant?q=' + encodeURIComponent('换成 USDC 然后存入 Aave'))} className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-body-sm font-medium text-muted-foreground transition-colors hover:border-[#007fff]/30 hover:text-[#007fff]">
             <span>🔀</span><span>演示 DeFi</span>

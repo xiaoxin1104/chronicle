@@ -180,7 +180,7 @@ function IntentConfirmCard({
 
   if (intentStatus === 'success') {
     return (
-      <div className="mt-3 rounded-xl border border-success-border bg-success-surface p-4">
+      <div className="mt-3 rounded-xl border border-success-border bg-success-surface p-4 animate-fade-in">
         <p className="text-body-sm font-semibold text-success-text">✅ 交易已签名</p>
         <p className="mt-1 font-mono text-xs text-muted-foreground break-all">txHash: {intentResult}</p>
         <p className="mt-2 text-caption text-muted-foreground">交易已在 Token Core WASM 沙箱中签名，测试网环境。</p>
@@ -199,7 +199,7 @@ function IntentConfirmCard({
 
   return (
     <div
-      className={`mt-3 rounded-xl border bg-card p-4 ${
+      className={`mt-3 rounded-xl border bg-card p-4 transition-all duration-300 animate-fade-in ${
         isDanger ? 'border-destructive/40 ring-1 ring-destructive/20' : 'border-primary/30'
       }`}
     >
@@ -240,7 +240,7 @@ function IntentConfirmCard({
         <Button
           variant="default"
           size="sm"
-          className="flex-1"
+          className="flex-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           disabled={intentStatus === 'executing'}
           onClick={onConfirm}
         >
@@ -379,14 +379,22 @@ export default function AssistantPage() {
     const demo = searchParams.get('demo')
     setSearchParams({}, { replace: true })
 
-    const timer = setTimeout(() => {
-      if (demo === 'transfer') {
-        handleSendRef.current('转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1')
-      } else if (q) {
-        handleSendRef.current(q)
-      }
-    }, 400)
-    return () => clearTimeout(timer)
+    if (demo === 'transfer' || demo === 'full') {
+      const steps = demo === 'full'
+        ? [
+            '转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1',
+            '换成 USDC 然后存入 Aave',
+            '分析我的资产并给建议',
+          ]
+        : ['转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1']
+
+      steps.forEach((msg, i) => {
+        setTimeout(() => handleSendRef.current(msg), 500 + i * 3000)
+      })
+    } else if (q) {
+      const timer = setTimeout(() => handleSendRef.current(q), 400)
+      return () => clearTimeout(timer)
+    }
   }, [])
 
   useEffect(() => {
