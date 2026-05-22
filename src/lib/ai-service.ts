@@ -612,19 +612,23 @@ function buildLocalIntent(userMessage: string): WalletIntent | undefined {
     }
   }
 
-  // 匹配多步编排: "换成 USDC 然后存入 Aave" / "质押 ETH 然后..."
-  const planRe = /(?:然后|再|接着|之后|and then|then)/i
-  if (planRe.test(msg)) {
-    // 简单拆分为两个独立 intent
-    const parts = msg.split(planRe)
-    const step1 = parts[0] ? buildLocalIntent(parts[0].trim()) : undefined
-    const step2 = parts[1] ? buildLocalIntent(parts[1].trim()) : undefined
-    if (step1 && step2 && step1.type !== 'plan' && step2.type !== 'plan') {
+  // 匹配多步编排: "换成 USDC 然后存入 Aave"
+  const planDelim = /然后|再|接着|之后|and\s+then|然后.*再/g
+  const parts = msg.split(planDelim).filter(p => p.trim().length > 0)
+  if (parts.length >= 2) {
+    const steps: WalletIntent[] = []
+    for (const part of parts) {
+      const intent = buildLocalIntent(part.trim())
+      if (intent && intent.type !== 'plan') {
+        steps.push(intent)
+      }
+    }
+    if (steps.length >= 2) {
       return {
         type: 'plan',
         params: {
-          description: msg.slice(0, 60),
-          steps: [step1, step2],
+          description: msg.slice(0, 80),
+          steps,
         },
       }
     }

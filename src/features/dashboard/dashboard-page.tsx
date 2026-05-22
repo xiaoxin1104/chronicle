@@ -154,31 +154,7 @@ export default function DashboardPage() {
             : '⚡ 演示环境 · 模拟数据为基础，可选接入 Sepolia RPC'}
         </p>
 
-        {/* 演示按钮 */}
-        <div className="mt-6 flex justify-center gap-3">
-          <button
-            onClick={handleDemoStart}
-            className={`group inline-flex items-center gap-3 rounded-full px-8 py-4 text-body-lg font-bold text-white transition-all duration-300 ${BRAND_GRADIENT} shadow-[var(--shadow-cta)] hover:shadow-[var(--shadow-cta-lg)] hover:scale-105 active:scale-95`}
-          >
-            <span className="text-2xl">▶</span>
-            <span>开始演示</span>
-            <span className="text-body-sm font-normal text-white/70 border-l border-white/20 pl-3 ml-1">
-              Intent 转账
-            </span>
-          </button>
-          <button
-            onClick={() => navigate('/assistant?q=' + encodeURIComponent('换成 USDC 然后存入 Aave'))}
-            className="group inline-flex items-center gap-2 rounded-full border-2 border-[#007fff]/30 bg-[#007fff]/[0.04] px-5 py-4 text-body-md font-semibold text-[#007fff] transition-all duration-300 hover:border-[#007fff]/60 hover:bg-[#007fff]/[0.08] hover:shadow-[var(--shadow-card)]"
-          >
-            <span className="text-lg">🔀</span>
-            <span>演示 DeFi 编排</span>
-          </button>
-        </div>
-        <p className="mt-3 text-caption text-muted-foreground">
-          Intent 转账：一句话发送交易 · DeFi 编排：换币 + 存款多步执行
-        </p>
-
-        {/* AI 输入框 */}
+        {/* AI 输入框 — 主交互入口 */}
         <div className="mt-6 mx-auto max-w-xl">
           <div className={`flex items-center gap-2 rounded-2xl border bg-card p-2 transition-all duration-300 ${
             isTyping
@@ -195,7 +171,7 @@ export default function DashboardPage() {
               onFocus={() => setIsTyping(true)}
               onBlur={() => setIsTyping(false)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={apiConnected ? '例如：帮我把 0.5 ETH 存到 2027 年...' : '例如：转 0.1 ETH 给 0x742d...'}
+              placeholder={apiConnected ? '直接告诉我想做什么... 转账、存款、换币都行' : '直接告诉我想做什么...'}
               className="flex-1 bg-transparent px-2 py-2 text-body-md outline-none placeholder:text-muted-foreground/50"
             />
             <button
@@ -213,7 +189,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 快捷操作 */}
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           {QUICK_ACTIONS.map((action) => (
             <button
               key={action.label}
@@ -224,6 +200,16 @@ export default function DashboardPage() {
               <span>{action.label}</span>
             </button>
           ))}
+        </div>
+
+        {/* 演示按钮 — 在快捷操作下方，不抢输入框的视觉焦点 */}
+        <div className="mt-3 flex justify-center gap-3">
+          <button onClick={handleDemoStart} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-body-sm font-medium text-white transition-all duration-300 ${BRAND_GRADIENT} hover:opacity-90 hover:shadow-[var(--shadow-cta-sm)]`}>
+            <span>▶</span><span>演示转账</span>
+          </button>
+          <button onClick={() => navigate('/assistant?q=' + encodeURIComponent('换成 USDC 然后存入 Aave'))} className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-body-sm font-medium text-muted-foreground transition-colors hover:border-[#007fff]/30 hover:text-[#007fff]">
+            <span>🔀</span><span>演示 DeFi</span>
+          </button>
         </div>
       </div>
 

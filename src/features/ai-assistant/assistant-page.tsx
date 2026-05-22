@@ -5,7 +5,7 @@ import { toast } from '@repo/ui/components/toast'
 import { useNavigate, useSearchParams } from 'react-router'
 import { quickPrompts, walletAssets, chronicleEvents } from '../../data/mock'
 import { tokenCore, isDemoWalletReady, getDemoPassword, type TransactionPreview } from '../../lib/token-core'
-import { CONTRACTS, buildAaveSupplyCalldata, buildUniswapSwapCalldata } from '../../lib/contracts'
+import { CONTRACTS, buildAaveSupplyCalldata, buildUniswapSwapCalldata, buildSwapPath, getTokenAddress, isProtocolAvailable, getContractAddress } from '../../lib/contracts'
 import {
   sendMessageStream,
   setApiKey,
@@ -570,12 +570,21 @@ export default function AssistantPage() {
           break
 
         case 'deposit': {
-          const dAssetAddr = intent.params.asset === 'ETH' ? CONTRACTS.WETH : CONTRACTS.USDC
-          const dCalldata = buildAaveSupplyCalldata(
-            dAssetAddr,
-            intent.params.asset === 'ETH' ? ethToWei(intent.params.amount) : String(Math.floor(parseFloat(intent.params.amount) * 1e6)),
-            '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
-          )
+          const proto = intent.params.protocol.toLowerCase()
+          const protoAddr = getContractAddress(proto)
+          if (!protoAddr || !isProtocolAvailable(proto)) {
+            updateMsg({
+              intentStatus: 'failed',
+              intentResult: `${proto === 'lido' ? 'Lido' : proto} 暂未在 Sepolia 测试网部署，当前仅支持 Aave V3。请说「存入 Aave」。`,
+            })
+            return
+          }
+          const dAssetAddr = intent.params.asset === 'ETH' ? CONTRACTS.WETH
+            : (getTokenAddress(intent.params.asset) || CONTRACTS.USDC)
+          const dAmount = intent.params.asset === 'ETH'
+            ? ethToWei(intent.params.amount)
+            : String(Math.floor(parseFloat(intent.params.amount) * 1e6))
+          const dCalldata = buildAaveSupplyCalldata(dAssetAddr, dAmount, '0x9858EfFD232B4033E47d90003D41EC34EcaEda94')
           result = await tokenCore.signTransaction({
             password: getDemoPassword(),
             chain: 'ETHEREUM',
@@ -584,7 +593,7 @@ export default function AssistantPage() {
               nonce: String(Date.now() % 1000),
               gasPrice: '20000000000',
               gasLimit: '300000',
-              to: intent.params.protocol === 'lido' ? CONTRACTS.LIDO_STETH : CONTRACTS.AAVE_V3_POOL,
+              to: protoAddr,
               value: intent.params.asset === 'ETH' ? ethToWei(intent.params.amount) : '0',
               data: dCalldata,
               chainId: '11155111',
@@ -594,13 +603,16 @@ export default function AssistantPage() {
         }
 
         case 'swap': {
-          const sPath = intent.params.fromAsset === 'ETH'
-            ? [CONTRACTS.WETH, CONTRACTS.USDC]
-            : [CONTRACTS.USDC, CONTRACTS.WETH]
+          const sPath = buildSwapPath(intent.params.fromAsset, intent.params.toAsset)
+          if (!sPath) {
+            updateMsg({
+              intentStatus: 'failed',
+              intentResult: `暂不支持 ${intent.params.fromAsset} ↔ ${intent.params.toAsset} 兑换。支持的代币: ETH, USDC, USDT, DAI。`,
+            })
+            return
+          }
           const sCalldata = buildUniswapSwapCalldata(
-            '0',
-            sPath,
-            '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
+            '0', sPath, '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
             Math.floor(Date.now() / 1000) + 3600,
           )
           result = await tokenCore.signTransaction({
