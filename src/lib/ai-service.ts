@@ -38,7 +38,22 @@ export interface ApproveIntent {
   params: { asset: string; amount: string; spender: string }
 }
 
-export type WalletIntent = TransferIntent | CapsuleIntent | ApproveIntent
+export interface DepositIntent {
+  type: 'deposit'
+  params: { protocol: string; asset: string; amount: string }
+}
+
+export interface SwapIntent {
+  type: 'swap'
+  params: { fromAsset: string; toAsset: string; amount: string }
+}
+
+export interface PlanIntent {
+  type: 'plan'
+  params: { description: string; steps: WalletIntent[] }
+}
+
+export type WalletIntent = TransferIntent | CapsuleIntent | ApproveIntent | DepositIntent | SwapIntent | PlanIntent
 
 export interface WalletContext {
   totalBalance: string
@@ -93,15 +108,20 @@ const SYSTEM_PROMPT = `你是 Chronicle AI 守护助手，一个专注于 Web3 �
 </intent>
 
 支持的类型：
-- transfer: 转账。params: asset, amount, to
-- approve: 授权。params: asset, amount, spender
-- capsule: 创建时间胶囊。params: asset, amount, unlockDate(ISO), recipient, message(可选)
+- transfer: 转账。params: { asset, amount, to }
+- approve: 授权。params: { asset, amount, spender }
+- capsule: 创建时间胶囊。params: { asset, amount, unlockDate(ISO), recipient, message(可选) }
+- deposit: DeFi 存款到协议。params: { protocol(aave/lido/uniswap), asset, amount }
+- swap: 代币兑换。params: { fromAsset, toAsset, amount }
+- plan: 多步编排。params: { description, steps: [...上面的任意 intent 类型] }
 
 规则：
 1. 先给友好的文字回复解释你在做什么，再附加 intent 块
 2. 信息不完整时（缺金额/地址/日期），在文字中询问，不要输出 intent
 3. amount 用纯数字字符串（如 "0.1"），to/spender/recipient 用 0x 格式
 4. unlockDate 用 ISO 格式（如 "2027-06-15T00:00:00Z"）
+5. 当用户需要多步操作时（如"换币然后存款"），使用 plan 类型，steps 按顺序排列
+6. protocol 字段用小写：aave、lido、uniswap
 
 ## 回答风格
 - 简洁、友好、专业
@@ -351,6 +371,37 @@ function fallbackResponse(userMessage: string): AIResponse {
       intent: localIntent,
     }
   }
+  if (localIntent?.type === 'deposit') {
+    const p = localIntent.params
+    const protoLabel = p.protocol === 'aave' ? 'Aave V3' : p.protocol === 'lido' ? 'Lido' : p.protocol.toUpperCase()
+    return {
+      content: `好的！我来帮你存入 ${protoLabel}：\n\n💰 存入 ${p.amount} ${p.asset}\n🏦 协议: ${protoLabel}\n⛽ Gas 预估: ~$5.00 (Sepolia)\n\n${p.asset === 'ETH' && p.protocol === 'lido' ? '存入后将获得 stETH 凭证，可继续用于其他 DeFi 协议。' : '存入后将获得生息代币，开始赚取收益。'}\n\n交易预览已生成，请确认后点击「确认存入」。`,
+      riskLevel: 'info',
+      intent: localIntent,
+    }
+  }
+  if (localIntent?.type === 'swap') {
+    const p = localIntent.params
+    return {
+      content: `好的！我来帮你兑换：\n\n💱 ${p.fromAsset} → ${p.toAsset}\n📊 金额: ${p.amount} ${p.fromAsset}\n🏦 通过: Uniswap V2 (Sepolia)\n⛽ Gas 预估: ~$6.00 (Sepolia)\n\n交易预览已生成，请确认后点击「确认兑换」。`,
+      riskLevel: 'info',
+      intent: localIntent,
+    }
+  }
+  if (localIntent?.type === 'plan') {
+    const p = localIntent.params
+    const stepDescs = p.steps.map((s, i) => {
+      if (s.type === 'swap') return `第${i + 1}步: ${s.params.fromAsset} → ${s.params.toAsset}`
+      if (s.type === 'deposit') return `第${i + 1}步: 存入 ${s.params.amount} ${s.params.asset} 到 ${s.params.protocol}`
+      if (s.type === 'transfer') return `第${i + 1}步: 转账 ${s.params.amount} ${s.params.asset}`
+      return `第${i + 1}步: ${s.type}`
+    }).join('\n')
+    return {
+      content: `好的！我为你规划了一个 ${p.steps.length} 步交易计划：\n\n📋 ${p.description}\n\n${stepDescs}\n\n⛽ 预估总 Gas: ~$${(p.steps.length * 5).toFixed(2)} (Sepolia)\n\n请确认后依次执行每一步。`,
+      riskLevel: 'info',
+      intent: localIntent,
+    }
+  }
 
   if (msg.includes('时间胶囊') || msg.includes('锁定资产') || msg.includes('定时')) {
     return {
@@ -528,6 +579,54 @@ function buildLocalIntent(userMessage: string): WalletIntent | undefined {
         asset: aMatch[2] || 'ETH',
         spender: aMatch[3] || '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
       },
+    }
+  }
+
+  // 匹配存款/DeFi: "存入 100 USDC 到 Aave" / "质押 1 ETH 到 Lido"
+  const depositRe = /(?:(?:存[入款]|质押|deposit|supply)\s*([\d.]+)\s*(ETH|USDC|IMT|BTC)\s*(?:到|入|至|in|to)?\s*(Aave|Lido|Uniswap|aave|lido|uniswap)?)|((?:Aave|Lido|aave|lido)\s*(?:存[入款]|质押|deposit)\s*([\d.]+)\s*(ETH|USDC|IMT|BTC))/i
+  const dMatch = msg.match(depositRe)
+  if (dMatch) {
+    const amount = dMatch[1] || dMatch[5] || '0'
+    const asset = (dMatch[2] || dMatch[6] || 'ETH').toUpperCase()
+    const proto = (dMatch[3] || dMatch[4] || 'aave').toLowerCase()
+    return {
+      type: 'deposit',
+      params: {
+        protocol: proto.includes('lido') ? 'lido' : proto.includes('uniswap') ? 'uniswap' : 'aave',
+        asset,
+        amount,
+      },
+    }
+  }
+
+  // 匹配兑换/swap: "换 0.1 ETH 为 USDC" / "把 ETH 换成 USDC"
+  const swapRe = /(?:换|兑换|swap|exchange)\s*([\d.]+)?\s*(ETH|USDC|IMT|BTC)?\s*(?:成|为|换|到|to|for)?\s*(ETH|USDC|IMT|BTC)/i
+  const sMatch = msg.match(swapRe)
+  if (sMatch) {
+    const amount = sMatch[1] || '0.1'
+    const fromAsset = (sMatch[2] || 'ETH').toUpperCase()
+    const toAsset = sMatch[3].toUpperCase()
+    return {
+      type: 'swap',
+      params: { fromAsset, toAsset, amount },
+    }
+  }
+
+  // 匹配多步编排: "换成 USDC 然后存入 Aave" / "质押 ETH 然后..."
+  const planRe = /(?:然后|再|接着|之后|and then|then)/i
+  if (planRe.test(msg)) {
+    // 简单拆分为两个独立 intent
+    const parts = msg.split(planRe)
+    const step1 = parts[0] ? buildLocalIntent(parts[0].trim()) : undefined
+    const step2 = parts[1] ? buildLocalIntent(parts[1].trim()) : undefined
+    if (step1 && step2 && step1.type !== 'plan' && step2.type !== 'plan') {
+      return {
+        type: 'plan',
+        params: {
+          description: msg.slice(0, 60),
+          steps: [step1, step2],
+        },
+      }
     }
   }
 

@@ -5,6 +5,7 @@ import { toast } from '@repo/ui/components/toast'
 import { useNavigate, useSearchParams } from 'react-router'
 import { quickPrompts, walletAssets, chronicleEvents } from '../../data/mock'
 import { tokenCore, isDemoWalletReady, getDemoPassword, type TransactionPreview } from '../../lib/token-core'
+import { CONTRACTS, buildAaveSupplyCalldata, buildUniswapSwapCalldata } from '../../lib/contracts'
 import {
   sendMessageStream,
   setApiKey,
@@ -119,6 +120,41 @@ function intentToPreview(intent: WalletIntent): { title: string; rows: { label: 
           { label: 'Gas 预估', value: '~$3.00' },
         ],
         riskNote: intent.params.amount === 'unlimited' ? '⚠️ 无限额度授权极度危险！建议修改为实际需要的数量。' : '授权后该合约可支配对应额度的代币。',
+      }
+    case 'deposit':
+      return {
+        title: `🏦 确认存入 ${intent.params.protocol.toUpperCase()}`,
+        rows: [
+          { label: '存入资产', value: `${intent.params.amount} ${intent.params.asset}` },
+          { label: '目标协议', value: intent.params.protocol === 'aave' ? 'Aave V3' : intent.params.protocol === 'lido' ? 'Lido' : intent.params.protocol },
+          { label: '网络', value: 'Sepolia Testnet' },
+          { label: 'Gas 预估', value: '~$5.00' },
+        ],
+        riskNote: '确认后将资产存入 DeFi 协议。协议有智能合约风险，请自行评估。',
+      }
+    case 'swap':
+      return {
+        title: '💱 确认兑换',
+        rows: [
+          { label: '支付', value: `${intent.params.amount} ${intent.params.fromAsset}` },
+          { label: '获得', value: intent.params.toAsset },
+          { label: '途径', value: 'Uniswap V2 (Sepolia)' },
+          { label: 'Gas 预估', value: '~$6.00' },
+        ],
+        riskNote: '兑换价格为实时市场价，存在滑点。此为测试网演示。',
+      }
+    case 'plan':
+      return {
+        title: `📋 交易计划 (${intent.params.steps.length} 步)`,
+        rows: intent.params.steps.map((s, i) => {
+          let val = ''
+          if (s.type === 'swap') val = `${s.params.fromAsset} → ${s.params.toAsset}`
+          else if (s.type === 'deposit') val = `存入 ${s.params.amount} ${s.params.asset} 到 ${s.params.protocol}`
+          else if (s.type === 'transfer') val = `转账 ${s.params.amount} ${s.params.asset}`
+          else val = s.type
+          return { label: `第 ${i + 1} 步`, value: val }
+        }),
+        riskNote: `共 ${intent.params.steps.length} 步交易，将依次执行。上一步成功后才执行下一步。`,
       }
   }
 }
@@ -533,6 +569,103 @@ export default function AssistantPage() {
           })
           break
 
+        case 'deposit': {
+          const dAssetAddr = intent.params.asset === 'ETH' ? CONTRACTS.WETH : CONTRACTS.USDC
+          const dCalldata = buildAaveSupplyCalldata(
+            dAssetAddr,
+            intent.params.asset === 'ETH' ? ethToWei(intent.params.amount) : String(Math.floor(parseFloat(intent.params.amount) * 1e6)),
+            '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
+          )
+          result = await tokenCore.signTransaction({
+            password: getDemoPassword(),
+            chain: 'ETHEREUM',
+            derivationPath: "m/44'/60'/0'/0/0",
+            input: {
+              nonce: String(Date.now() % 1000),
+              gasPrice: '20000000000',
+              gasLimit: '300000',
+              to: intent.params.protocol === 'lido' ? CONTRACTS.LIDO_STETH : CONTRACTS.AAVE_V3_POOL,
+              value: intent.params.asset === 'ETH' ? ethToWei(intent.params.amount) : '0',
+              data: dCalldata,
+              chainId: '11155111',
+            },
+          })
+          break
+        }
+
+        case 'swap': {
+          const sPath = intent.params.fromAsset === 'ETH'
+            ? [CONTRACTS.WETH, CONTRACTS.USDC]
+            : [CONTRACTS.USDC, CONTRACTS.WETH]
+          const sCalldata = buildUniswapSwapCalldata(
+            '0',
+            sPath,
+            '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
+            Math.floor(Date.now() / 1000) + 3600,
+          )
+          result = await tokenCore.signTransaction({
+            password: getDemoPassword(),
+            chain: 'ETHEREUM',
+            derivationPath: "m/44'/60'/0'/0/0",
+            input: {
+              nonce: String(Date.now() % 1000),
+              gasPrice: '20000000000',
+              gasLimit: '250000',
+              to: CONTRACTS.UNISWAP_V2_ROUTER,
+              value: intent.params.fromAsset === 'ETH' ? ethToWei(intent.params.amount) : '0',
+              data: sCalldata,
+              chainId: '11155111',
+            },
+          })
+          break
+        }
+
+        case 'plan': {
+          let planResult = ''
+          const steps = intent.params.steps
+          for (let i = 0; i < steps.length; i++) {
+            const step = steps[i]
+            updateMsg({
+              intentStatus: 'executing',
+              intentResult: `执行中: 第 ${i + 1}/${steps.length} 步...`,
+            })
+            try {
+              const stepAmt = 'amount' in step.params ? (step.params as { amount: string }).amount : '0'
+              const stepTo = 'to' in step.params ? (step.params as { to: string }).to
+                : 'recipient' in step.params ? (step.params as { recipient: string }).recipient
+                : 'spender' in step.params ? (step.params as { spender: string }).spender
+                : CONTRACTS.AAVE_V3_POOL
+              const stepResult = await tokenCore.signTransaction({
+                password: getDemoPassword(),
+                chain: 'ETHEREUM',
+                derivationPath: "m/44'/60'/0'/0/0",
+                input: {
+                  nonce: String(Date.now() % 1000 + i),
+                  gasPrice: '20000000000',
+                  gasLimit: '21000',
+                  to: stepTo,
+                  value: ethToWei(stepAmt),
+                  chainId: '11155111',
+                },
+              })
+              if (stepResult.success) {
+                planResult += `✅ 第${i + 1}步: ${stepResult.data?.txHash?.slice(0, 14)}...\n`
+              } else {
+                planResult += `❌ 第${i + 1}步失败: ${stepResult.error}\n`
+                break
+              }
+            } catch (err) {
+              planResult += `❌ 第${i + 1}步异常: ${String(err)}\n`
+              break
+            }
+          }
+          updateMsg({
+            intentStatus: planResult.includes('❌') ? 'failed' : 'success',
+            intentResult: planResult.trim() || '计划执行完成',
+          })
+          return
+        }
+
         default:
           updateMsg({ intentStatus: 'failed', intentResult: '不支持的交易类型' })
           return
@@ -584,6 +717,7 @@ export default function AssistantPage() {
       case 'simulate_defi': handleQuickPrompt('推荐一个安全的 DeFi 策略'); break
       case 'create_capsule': handleQuickPrompt('帮我创建一个时间胶囊，锁定 0.5 ETH 到明年生日'); break
       case 'demo_transfer': handleQuickPrompt('转 0.05 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1'); break
+      case 'demo_defi': handleQuickPrompt('换成 USDC 然后存入 Aave'); break
       case 'help': handleQuickPrompt('你能做什么'); break
     }
   }

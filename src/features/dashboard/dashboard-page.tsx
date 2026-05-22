@@ -154,8 +154,8 @@ export default function DashboardPage() {
             : '⚡ 演示环境 · 模拟数据为基础，可选接入 Sepolia RPC'}
         </p>
 
-        {/* 演示按钮 — 评委入口 */}
-        <div className="mt-6 flex justify-center">
+        {/* 演示按钮 */}
+        <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={handleDemoStart}
             className={`group inline-flex items-center gap-3 rounded-full px-8 py-4 text-body-lg font-bold text-white transition-all duration-300 ${BRAND_GRADIENT} shadow-[var(--shadow-cta)] hover:shadow-[var(--shadow-cta-lg)] hover:scale-105 active:scale-95`}
@@ -163,12 +163,19 @@ export default function DashboardPage() {
             <span className="text-2xl">▶</span>
             <span>开始演示</span>
             <span className="text-body-sm font-normal text-white/70 border-l border-white/20 pl-3 ml-1">
-              2 分钟了解核心能力
+              Intent 转账
             </span>
+          </button>
+          <button
+            onClick={() => navigate('/assistant?q=' + encodeURIComponent('换成 USDC 然后存入 Aave'))}
+            className="group inline-flex items-center gap-2 rounded-full border-2 border-[#007fff]/30 bg-[#007fff]/[0.04] px-5 py-4 text-body-md font-semibold text-[#007fff] transition-all duration-300 hover:border-[#007fff]/60 hover:bg-[#007fff]/[0.08] hover:shadow-[var(--shadow-card)]"
+          >
+            <span className="text-lg">🔀</span>
+            <span>演示 DeFi 编排</span>
           </button>
         </div>
         <p className="mt-3 text-caption text-muted-foreground">
-          点击按钮 → AI 自动为你演示一笔转账的完整 Intent 交易流程
+          Intent 转账：一句话发送交易 · DeFi 编排：换币 + 存款多步执行
         </p>
 
         {/* AI 输入框 */}
