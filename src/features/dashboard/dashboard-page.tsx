@@ -352,6 +352,34 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* WalletConnect 占位 — DApp 生态集成 */}
+        <Card className="lg:col-span-2 border-dashed border-[#007fff]/20 bg-gradient-to-br from-[#007fff]/[0.02] to-transparent">
+          <CardHeader>
+            <CardTitle>🔌 DApp 生态集成</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#007fff]/20 bg-[#007fff]/[0.04] text-2xl">
+                🔗
+              </div>
+              <div className="min-w-0">
+                <p className="text-body-sm font-semibold">WalletConnect · Permit 签名</p>
+                <p className="mt-0.5 text-caption text-muted-foreground">
+                  连接 DApp、签署 Permit/EIP-712 签名、合约交互——基于 Token Core 的 DApp 沙箱正在接入中。
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#007fff]/10 px-2 py-0.5 text-2xs font-medium text-[#007fff]">
+                    ⏳ 路线图中
+                  </span>
+                  <span className="text-2xs text-muted-foreground">
+                    当前独立钱包模式已覆盖转账、DeFi 存款、代币兑换
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

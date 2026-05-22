@@ -5,7 +5,7 @@ import { Chip } from '@repo/ui/components/chip'
 import { cn } from '../../lib/utils'
 import { chronicleEvents, type EventType, type ChronicleEvent } from '../../data/mock'
 import { formatDate, formatRelative } from '../../lib/utils'
-import { hasApiKey } from '../../lib/ai-service'
+import { hasApiKey, sendMessageStream } from '../../lib/ai-service'
 import { fetchTxCount, isRpcAvailable } from '../../lib/etherscan'
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router'
@@ -176,6 +176,30 @@ export default function ChroniclePage() {
   const apiConnected = hasApiKey()
   const rpcReady = isRpcAvailable()
 
+  // AI 生成叙事（有 Claude 时用真实 AI）
+  const [aiNarrative, setAiNarrative] = useState<NarrativeSummary | null>(null)
+  const [narrativeLoading, setNarrativeLoading] = useState(false)
+
+  useEffect(() => {
+    if (!apiConnected) return
+    setNarrativeLoading(true)
+    const eventsSummary = allEvents
+      .slice(0, 10)
+      .map(e => `- ${formatDate(e.timestamp)}: ${e.title} (${e.description}) — ${e.value}`)
+      .join('\n')
+    const prompt = `基于以下链上交易记录，用中文写一段 2-3 句的链上叙事总结，包含一个叙事标题、一句叙事内容、一个链上人格 mood（如"DeFi 先锋""NFT 收藏家""稳健积累者"）、一个亮点标注。直接回复 JSON 格式：{"title":"...","content":"...","mood":"...","highlight":"..."}。\n\n交易记录：\n${eventsSummary}`
+    sendMessageStream(prompt, () => {}).then((resp) => {
+      try {
+        const jsonMatch = resp.content.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          setAiNarrative(parsed)
+        }
+      } catch { /* fallback to static */ }
+      setNarrativeLoading(false)
+    })
+  }, [apiConnected])
+
   // 获取真实交易计数
   useEffect(() => {
     fetchTxCount().then((count) => {
@@ -191,7 +215,9 @@ export default function ChroniclePage() {
     return allEvents.filter((e) => e.type === filter)
   }, [filter, allEvents])
 
-  const narrative = useMemo(() => generateNarrative(allEvents), [allEvents])
+  const narrative = useMemo(() =>
+    aiNarrative || generateNarrative(allEvents),
+  [allEvents, aiNarrative])
   const personality = useMemo(computePersonality, [])
   const chainDays = useMemo(computeChainDays, [])
 
@@ -234,7 +260,7 @@ export default function ChroniclePage() {
           <div className="flex items-center gap-2 mb-3">
             <span className="text-lg">🤖</span>
             <span className={`text-body-sm font-semibold ${apiConnected ? BRAND_TEXT_GRADIENT : 'text-foreground'}`}>
-              {apiConnected ? 'AI 叙事' : '链上故事'}
+              {narrativeLoading ? 'AI 生成叙事中...' : aiNarrative ? '🤖 AI 实时叙事' : apiConnected ? 'AI 叙事' : '链上故事'}
             </span>
           </div>
           <h3 className="text-title-sm font-bold mb-2">{narrative.title}</h3>
