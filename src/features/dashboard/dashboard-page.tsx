@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui/components/ca
 import { SectionPanel } from '@repo/ui/components/section-panel'
 import { walletAssets, totalBalance, totalChange, chronicleEvents } from '../../data/mock'
 import { isDemoWalletReady } from '../../lib/token-core'
-import { hasApiKey } from '../../lib/ai-service'
+import { hasApiKey, getProvider } from '../../lib/ai-service'
 import { fetchAllChainBalances, fetchNetworkInfo, isRpcAvailable, DEMO_ADDRESS, CHAINS, type ChainBalance, type NetworkInfo } from '../../lib/etherscan'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
@@ -128,7 +128,7 @@ export default function DashboardPage() {
           </span>
           <span className="text-caption text-muted-foreground">·</span>
           <span className={`text-caption font-medium ${apiConnected ? 'text-success-text' : 'text-muted-foreground'}`}>
-            {apiConnected ? 'Claude' : '本地'}
+            {apiConnected ? (getProvider() === 'anthropic' ? 'Claude' : 'DeepSeek') : '本地'}
           </span>
           <span className="text-caption text-[#2168db] bg-[#2168db]/5 px-2 py-0.5 rounded-full font-medium">
             十周年

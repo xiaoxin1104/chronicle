@@ -2,7 +2,8 @@
  * AI 服务模块 — Chronicle
  *
  * 为 Chronicle AI 守护助手提供真实的 LLM 对话能力。
- * 支持 Anthropic API（Claude），包含流式响应、对话持久化、本地降级。
+ * 支持 DeepSeek (OpenAI 兼容) 和 Anthropic Claude，自动根据 Key 前缀切换。
+ * 包含流式响应、对话持久化、本地降级。
  */
 
 import type { RiskLevel } from './token-core'
@@ -73,6 +74,25 @@ const SYSTEM_PROMPT = `你是 Chronicle AI 守护助手，一个专注于 Web3 �
 - 你服务于 Chronicle——一个"链上时光钱包"，核心理念是"不只是管钱的地方，更是你链上人生的编年史"
 - 底层基于 Token Core（consenlabs/token-core-monorepo）提供企业级钱包安全能力
 - 你的任务是用自然语言帮助用户管理资产、创建时间胶囊、分析风险、理解链上活动
+
+## 领域限制（严格遵守）
+你是一个专注的钱包 AI 助手，只回答以下领域的问题：
+- 区块链钱包操作（转账、签名、授权、Gas 费）
+- DeFi 协议（Aave、Uniswap、Lido 等）
+- 链上资产管理和分析
+- 交易风险和安全建议
+- NFT 和数字收藏品
+- 时间胶囊和时间锁定交易
+- 助记词、私钥安全
+
+对于以下类别的问题，你必须礼貌拒绝：
+- 编程、代码、技术开发
+- 数学、科学、学术问题
+- 娱乐、八卦、新闻
+- 翻译、写作、内容创作
+- 任何与区块链钱包无关的话题
+
+拒绝话术："抱歉，我是 Chronicle 的专属钱包 AI 助手，只帮你管理链上资产和交易。你可以问我转账、DeFi、时间胶囊、安全相关的问题～"
 
 ## 核心功能
 
@@ -155,16 +175,29 @@ const SYSTEM_PROMPT = `你是 Chronicle AI 守护助手，一个专注于 Web3 �
 
 // ---------- API 配置 ----------
 
+type Provider = 'deepseek' | 'anthropic'
+
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions'
+const DEEPSEEK_MODEL = 'deepseek-chat'
+
 const ANTHROPIC_API_URL = import.meta.env.DEV
   ? '/api/anthropic/v1/messages'
   : 'https://api.anthropic.com/v1/messages'
+const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
 
 const STORAGE_KEY_KEY = 'chronicle_anthropic_key'
 const STORAGE_KEY_CONV = 'chronicle_conversation'
 
-let apiKey: string | null = null
+// 大赛专用 Key（赛后弃用）
+const COMPETITION_KEY = 'sk-e607c9f48a274e1784a3f5a53cd0335f'
 
-// 启动时从 localStorage 恢复
+export function detectProvider(key: string): Provider {
+  return key.startsWith('sk-ant-') ? 'anthropic' : 'deepseek'
+}
+
+let apiKey: string | null = COMPETITION_KEY
+
+// localStorage 中的手动输入 Key 优先于大赛 Key
 try {
   const saved = localStorage.getItem(STORAGE_KEY_KEY)
   if (saved) apiKey = saved
@@ -184,8 +217,13 @@ export function hasApiKey(): boolean {
 }
 
 export function clearApiKey(): void {
-  apiKey = null
+  apiKey = COMPETITION_KEY // 恢复为大赛 Key
   try { localStorage.removeItem(STORAGE_KEY_KEY) } catch { /* ignore */ }
+}
+
+export function getProvider(): Provider | null {
+  if (!apiKey) return null
+  return detectProvider(apiKey)
 }
 
 // ---------- 对话状态 ----------
@@ -240,7 +278,7 @@ function buildSystemPrompt(): string {
   return prompt
 }
 
-// ---------- LLM 调用（流式）----------
+// ---------- LLM 调用（流式，双提供商）----------
 
 export async function sendMessageStream(
   userMessage: string,
@@ -251,7 +289,6 @@ export async function sendMessageStream(
 
   if (!apiKey) {
     const fallback = fallbackResponse(userMessage)
-    // 模拟流式输出
     for (const char of fallback.content) {
       onChunk(char)
       await new Promise((r) => setTimeout(r, 15))
@@ -261,40 +298,61 @@ export async function sendMessageStream(
 
   try {
     const systemPrompt = buildSystemPrompt()
-    const messages = conversationState.messages.slice(-20).map((m) => ({
+    const provider = detectProvider(apiKey)
+    const history = conversationState.messages.slice(-20).map((m) => ({
       role: m.role,
       content: m.content,
     }))
 
-    const isDevProxy = ANTHROPIC_API_URL.startsWith('/api/')
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey!,
-        'anthropic-version': '2023-06-01',
-        ...(isDevProxy ? {} : { 'anthropic-dangerous-direct-browser-access': 'true' }),
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages,
-        stream: true,
-      }),
-    })
+    let response: Response
+    let streamBody: string
+
+    if (provider === 'anthropic') {
+      const isDevProxy = ANTHROPIC_API_URL.startsWith('/api/')
+      response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey!,
+          'anthropic-version': '2023-06-01',
+          ...(isDevProxy ? {} : { 'anthropic-dangerous-direct-browser-access': 'true' }),
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: history,
+          stream: true,
+        }),
+      })
+    } else {
+      // DeepSeek / OpenAI 兼容
+      const systemMsg = { role: 'system' as const, content: systemPrompt }
+      response = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_MODEL,
+          max_tokens: 1024,
+          messages: [systemMsg, ...history],
+          stream: true,
+        }),
+      })
+    }
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '')
       throw new Error(`API 错误 ${response.status}: ${errText}`)
     }
 
-    // 解析 SSE 流
-    let fullContent = ''
     const reader = response.body?.getReader()
     if (!reader) throw new Error('无法读取响应流')
 
     const decoder = new TextDecoder()
+    let fullContent = ''
     let buffer = ''
 
     while (true) {
@@ -312,33 +370,47 @@ export async function sendMessageStream(
 
         try {
           const parsed = JSON.parse(data)
-          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-            fullContent += parsed.delta.text
-            onChunk(parsed.delta.text)
+          if (provider === 'anthropic') {
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              fullContent += parsed.delta.text
+              onChunk(parsed.delta.text)
+            }
+          } else {
+            // OpenAI 兼容: choices[0].delta.content
+            const chunk = parsed.choices?.[0]?.delta?.content
+            if (chunk) {
+              fullContent += chunk
+              onChunk(chunk)
+            }
           }
-        } catch {
-          // 跳过无法解析的行
-        }
+        } catch { /* skip */ }
       }
     }
 
-    // 处理 buffer 剩余
+    // buffer 剩余
     for (const line of buffer.split('\n')) {
       if (!line.startsWith('data: ')) continue
       const data = line.slice(6).trim()
       if (data === '[DONE]') continue
       try {
         const parsed = JSON.parse(data)
-        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-          fullContent += parsed.delta.text
-          onChunk(parsed.delta.text)
+        if (provider === 'anthropic') {
+          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+            fullContent += parsed.delta.text
+            onChunk(parsed.delta.text)
+          }
+        } else {
+          const chunk = parsed.choices?.[0]?.delta?.content
+          if (chunk) {
+            fullContent += chunk
+            onChunk(chunk)
+          }
         }
       } catch { /* ignore */ }
     }
 
     if (!fullContent) fullContent = '抱歉，我暂时无法回复，请稍后再试。'
 
-    // 解析意图并清理内容
     const { intent, cleanContent } = parseIntentFromResponse(fullContent)
 
     conversationState.messages.push({ role: 'assistant', content: cleanContent })

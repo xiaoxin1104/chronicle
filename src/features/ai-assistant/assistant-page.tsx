@@ -11,6 +11,8 @@ import {
   setApiKey,
   hasApiKey,
   getApiKey,
+  getProvider,
+  detectProvider,
   setWalletContext,
   resetConversation,
   getConversationHistory,
@@ -271,7 +273,7 @@ function ApiKeySetup({ onSet }: { onSet: () => void }) {
     setApiKey(key.trim())
     setTimeout(() => {
       setSaving(false)
-      toast.success('✅ API Key 已保存', { description: 'AI 助手现在由 Claude 驱动' })
+      toast.success('✅ API Key 已保存', { description: `AI 助手现在由 ${detectProvider(key.trim()) === 'anthropic' ? 'Claude' : 'DeepSeek'} 驱动` })
       onSet()
     }, 300)
   }
@@ -766,7 +768,7 @@ export default function AssistantPage() {
         <h2 className="text-title-lg font-bold tracking-tight">AI 守护助手</h2>
         <p className="mt-1 text-body-md text-muted-foreground">
           Intent-centric AI 钱包 — 说出你想做什么，我来执行
-          {hasApiKey() && <span className="ml-2 text-success-text text-caption font-medium">● Claude 已连接</span>}
+          {hasApiKey() && <span className="ml-2 text-success-text text-caption font-medium">● {getProvider() === 'anthropic' ? 'Claude' : 'DeepSeek'} 已连接</span>}
           {!hasApiKey() && <span className="ml-2 text-warning-text text-caption">● 本地模式</span>}
         </p>
       </div>
