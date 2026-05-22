@@ -66,6 +66,105 @@ function computeInsights(rpcBalances?: { eth: string; txCount: number } | null):
   return insights
 }
 
+// ---------- WalletConnect 演示 ----------
+
+function WCDemoModal({ onClose, onSign }: { onClose: () => void; onSign: () => void }) {
+  const [step, setStep] = useState(0)
+
+  const steps = [
+    {
+      title: '📱 扫描 WalletConnect QR 码',
+      content: (
+        <div className="text-center space-y-3">
+          <div className="mx-auto flex size-40 items-center justify-center rounded-2xl border-2 border-[#007fff]/20 bg-white p-4">
+            <svg viewBox="0 0 100 100" className="size-full">
+              <rect x="10" y="10" width="80" height="80" rx="8" fill="none" stroke="#007fff" strokeWidth="2" />
+              <rect x="25" y="25" width="10" height="10" fill="#007fff" /><rect x="65" y="25" width="10" height="10" fill="#007fff" />
+              <rect x="25" y="65" width="10" height="10" fill="#007fff" /><rect x="45" y="45" width="10" height="10" fill="#007fff" />
+              <rect x="55" y="55" width="6" height="6" fill="#007fff" /><rect x="35" y="35" width="6" height="6" fill="#007fff" />
+              <rect x="55" y="25" width="6" height="6" fill="#007fff" /><rect x="25" y="55" width="6" height="6" fill="#007fff" />
+            </svg>
+          </div>
+          <p className="text-body-sm text-muted-foreground">模拟 Uniswap DApp 连接请求</p>
+          <button onClick={() => setStep(1)} className="rounded-full bg-[#007fff] px-6 py-2 text-body-sm font-medium text-white hover:opacity-90 transition-all">
+            模拟扫码连接
+          </button>
+        </div>
+      ),
+    },
+    {
+      title: '🔗 Uniswap 请求连接你的钱包',
+      content: (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-surface-blue p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-full bg-[#ff007a]/10 text-lg">🦄</div>
+              <div>
+                <p className="text-body-sm font-semibold">Uniswap Interface</p>
+                <p className="text-caption text-muted-foreground">https://app.uniswap.org</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border p-3 space-y-2 text-body-sm">
+            <p className="font-medium">请求权限</p>
+            <p className="text-muted-foreground">✅ 查看钱包地址</p>
+            <p className="text-muted-foreground">✅ 请求交易签名</p>
+            <p className="text-muted-foreground">❌ 不请求资产转移权限</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setStep(prev => Math.max(0, prev - 1))} className="flex-1 rounded-full border border-border px-4 py-2 text-body-sm hover:bg-secondary">拒绝</button>
+            <button onClick={() => setStep(2)} className="flex-1 rounded-full bg-[#007fff] px-4 py-2 text-body-sm font-medium text-white hover:opacity-90">连接</button>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '✅ 已连接 · Uniswap 请求签名',
+      content: (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-success animate-pulse" />
+            <span className="text-body-sm font-medium text-success-text">Uniswap (Sepolia) · 会话活跃</span>
+          </div>
+          <div className="rounded-xl border border-[#007fff]/20 bg-[#007fff]/[0.02] p-4">
+            <p className="text-body-sm font-semibold mb-2">📝 签名请求</p>
+            <div className="space-y-2 text-body-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">DApp</span><span>Uniswap</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">方法</span><span className="font-mono text-xs">swapExactETHForTokens</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">金额</span><span className="font-semibold">0.1 ETH → USDC</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">合约</span><span className="font-mono text-xs">0xC532...9008</span></div>
+            </div>
+          </div>
+          <p className="text-caption text-muted-foreground">
+            ℹ️ 这是通过 WalletConnect 发起的真实 DApp 签名请求流程演示
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setStep(1)} className="flex-1 rounded-full border border-border px-4 py-2 text-body-sm hover:bg-secondary">拒绝</button>
+            <button onClick={() => { onSign(); onClose() }} className="flex-1 rounded-full bg-[#007fff] px-4 py-2 text-body-sm font-medium text-white hover:opacity-90">签名并确认</button>
+          </div>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark-surface/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="mx-4 w-full max-w-md animate-soft-bloom rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-dialog)]" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-title-sm font-bold">{steps[step].title}</h3>
+          <button onClick={onClose} className="rounded-xl p-1.5 text-muted-foreground hover:bg-secondary">✕</button>
+        </div>
+        {steps[step].content}
+        <div className="mt-4 flex justify-center gap-2">
+          {steps.map((_, i) => (
+            <div key={i} className={`size-2 rounded-full transition-all ${i === step ? 'bg-[#007fff] scale-125' : 'bg-border'}`} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---------- 主页面 ----------
 
 export default function DashboardPage() {
@@ -73,6 +172,7 @@ export default function DashboardPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputVal, setInputVal] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [showWCDemo, setShowWCDemo] = useState(false)
   const [chainBalances, setChainBalances] = useState<ChainBalance[] | null>(null)
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null)
   const [rpcReady, setRpcReady] = useState<boolean | null>(null)
@@ -374,27 +474,30 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* WalletConnect 占位 — DApp 生态集成 */}
-        <Card className="lg:col-span-2 border-dashed border-[#007fff]/20 bg-gradient-to-br from-[#007fff]/[0.02] to-transparent">
+        {/* WalletConnect — DApp 生态集成 */}
+        <Card
+          className="lg:col-span-2 border-[#007fff]/20 bg-gradient-to-br from-[#007fff]/[0.02] to-transparent cursor-pointer hover:border-[#007fff]/40 hover:shadow-[var(--shadow-card)] transition-all duration-300"
+          onClick={() => setShowWCDemo(true)}
+        >
           <CardHeader>
-            <CardTitle>🔌 DApp 生态集成</CardTitle>
+            <CardTitle>🔌 DApp 生态集成 · WalletConnect</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#007fff]/20 bg-[#007fff]/[0.04] text-2xl">
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[#007fff]/20 bg-[#007fff]/[0.04] text-2xl">
                 🔗
               </div>
               <div className="min-w-0">
-                <p className="text-body-sm font-semibold">WalletConnect · Permit 签名</p>
+                <p className="text-body-sm font-semibold">点击演示 WalletConnect DApp 签名流程</p>
                 <p className="mt-0.5 text-caption text-muted-foreground">
-                  连接 DApp、签署 Permit/EIP-712 签名、合约交互——基于 Token Core 的 DApp 沙箱正在接入中。
+                  QR 扫码 → Uniswap 连接 → 签名请求 → Token Core WASM 确认。完整 DApp→钱包交互链路。
                 </p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#007fff]/10 px-2 py-0.5 text-2xs font-medium text-[#007fff]">
-                    ⏳ 路线图中
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-2xs font-medium text-success-text">
+                    ▶ 点击演示
                   </span>
                   <span className="text-2xs text-muted-foreground">
-                    当前独立钱包模式已覆盖转账、DeFi 存款、代币兑换
+                    WalletConnect · Permit · EIP-712 · 合约交互
                   </span>
                 </div>
               </div>
@@ -402,6 +505,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* WalletConnect 演示弹窗 */}
+      {showWCDemo && (
+        <WCDemoModal
+          onClose={() => setShowWCDemo(false)}
+          onSign={() => navigate('/assistant?q=' + encodeURIComponent('转 0.1 ETH 给 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1'))}
+        />
+      )}
     </div>
   )
 }
