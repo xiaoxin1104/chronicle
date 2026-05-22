@@ -367,6 +367,7 @@ export default function AssistantPage() {
   const streamMsgId = useRef<string>('')
   const isDemoRef = useRef(false)
   const isProcessingRef = useRef(false)
+  const nonceRef = useRef(306) // Sepolia 演示地址真实 nonce 起点
 
   // 注入动态钱包上下文
   useEffect(() => {
@@ -538,7 +539,7 @@ export default function AssistantPage() {
             chain: 'ETHEREUM',
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
-              nonce: String(Date.now() % 1000),
+              nonce: String(nonceRef.current++),
               gasPrice: '20000000000',
               gasLimit: '21000',
               to: intent.params.to,
@@ -555,7 +556,7 @@ export default function AssistantPage() {
             chain: 'ETHEREUM',
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
-              nonce: String(Date.now() % 1000),
+              nonce: String(nonceRef.current++),
               gasPrice: '20000000000',
               gasLimit: '21000',
               to: intent.params.recipient,
@@ -602,7 +603,7 @@ export default function AssistantPage() {
             chain: 'ETHEREUM',
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
-              nonce: String(Date.now() % 1000),
+              nonce: String(nonceRef.current++),
               gasPrice: '20000000000',
               gasLimit: '60000',
               to: tokenAddr,
@@ -635,7 +636,7 @@ export default function AssistantPage() {
             chain: 'ETHEREUM',
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
-              nonce: String(Date.now() % 1000),
+              nonce: String(nonceRef.current++),
               gasPrice: '20000000000',
               gasLimit: '300000',
               to: protoAddr,
@@ -665,7 +666,7 @@ export default function AssistantPage() {
             chain: 'ETHEREUM',
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
-              nonce: String(Date.now() % 1000),
+              nonce: String(nonceRef.current++),
               gasPrice: '20000000000',
               gasLimit: '250000',
               to: CONTRACTS.UNISWAP_V2_ROUTER,

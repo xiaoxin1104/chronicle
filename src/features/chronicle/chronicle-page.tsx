@@ -66,8 +66,8 @@ function generateNarrative(events: ChronicleEvent[]): NarrativeSummary {
   }
 }
 
-function computePersonality(): { style: string; traits: string[]; score: number } {
-  const types = chronicleEvents.map(e => e.type)
+function computePersonality(events: ChronicleEvent[]): { style: string; traits: string[]; score: number } {
+  const types = events.map(e => e.type)
   const uniqueTypes = new Set(types)
   const defiRatio = types.filter(t => t === 'defi' || t === 'staking').length / types.length
 
@@ -219,7 +219,7 @@ export default function ChroniclePage() {
   const narrative = useMemo(() =>
     aiNarrative || generateNarrative(allEvents),
   [allEvents, aiNarrative])
-  const personality = useMemo(computePersonality, [])
+  const personality = useMemo(() => computePersonality(allEvents), [allEvents])
   const chainDays = useMemo(computeChainDays, [])
 
   // 年度统计使用合并数据

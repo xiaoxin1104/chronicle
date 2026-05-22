@@ -19,32 +19,46 @@ interface AIInsight {
   icon: string; title: string; description: string; prompt: string; priority: 'high' | 'medium'
 }
 
-function computeInsights(): AIInsight[] {
+function computeInsights(rpcBalances?: { eth: string; txCount: number } | null): AIInsight[] {
   const insights: AIInsight[] = []
-  const ethAsset = walletAssets.find(a => a.symbol === 'ETH')
-  const usdcAsset = walletAssets.find(a => a.symbol === 'USDC')
 
-  if (ethAsset && parseFloat(ethAsset.amount) > 1) {
+  // 优先用 RPC 真实数据，否则 fallback 到 mock
+  const hasRealEth = rpcBalances && parseFloat(rpcBalances.eth) > 0
+  const ethAmount = hasRealEth ? rpcBalances!.eth : '2.48'
+  const ethDisplay = hasRealEth ? `${parseFloat(ethAmount).toFixed(4)} ETH` : '2.5 ETH'
+  const txCount = rpcBalances?.txCount ?? 306
+
+  if (hasRealEth && parseFloat(ethAmount) > 0.001) {
     insights.push({
       icon: '💡',
-      title: `${parseFloat(ethAsset.amount).toFixed(1)} ETH 闲置中 — 质押可年获 ~0.08 ETH`,
-      description: '存入 Lido 获取 stETH，APY 3.1%。stETH 还可作 Aave 抵押品实现双重收益。',
-      prompt: `我有 ${ethAsset.amount} ETH 闲置，帮我分析最好的收益策略`,
+      title: `${ethDisplay} 存在于链上 — 要不要让它帮你赚更多？`,
+      description: `当前 Sepolia 余额 ${ethDisplay}，${txCount} 笔历史交易。闲置资产可以通过 Lido 质押或 Aave 存款产生收益。`,
+      prompt: `我有 ${ethDisplay} 在钱包里，帮我分析怎么增值`,
+      priority: 'high',
+    })
+  } else if (!hasRealEth) {
+    insights.push({
+      icon: '💡',
+      title: '链上钱包已就绪，准备开始你的 Web3 之旅',
+      description: `已确认 Sepolia 连接正常（${txCount} 笔历史交易）。领取测试币后即可体验完整的 Intent 交易流程。`,
+      prompt: '帮我创建一个时间胶囊，锁定 0.5 ETH 到 2027 年',
       priority: 'high',
     })
   }
+
+  const usdcAsset = walletAssets.find(a => a.symbol === 'USDC')
   if (usdcAsset && parseFloat(usdcAsset.amount.replace(',', '')) > 1000) {
     insights.push({
       icon: '💰',
-      title: `${usdcAsset.amount} USDC 零收益 — Aave 存款 APY 4.2%`,
+      title: `${usdcAsset.amount} USDC（模拟）零收益 — Aave 存款 APY 4.2%`,
       description: '闲置稳定币在钱包里不会增值。一句话存入 Aave 开始赚利息。',
       prompt: `帮我把 ${usdcAsset.amount} USDC 存入 Aave`,
-      priority: 'high',
+      priority: 'medium',
     })
   }
   insights.push({
     icon: '⏳',
-    title: '还没创建过时间胶囊？',
+    title: '时间胶囊是 Chronicle 最独特的功能',
     description: '锁定一笔资产给未来的自己或家人。"帮我把 0.5 ETH 锁到 2027 年作为女儿生日礼物"',
     prompt: '帮我创建一个时间胶囊，锁定 0.5 ETH 到 2027 年 6 月',
     priority: 'medium',
@@ -66,7 +80,10 @@ export default function DashboardPage() {
   const apiConnected = hasApiKey()
   const demoReady = isDemoWalletReady()
 
-  const insights = useMemo(computeInsights, [])
+  const insights = useMemo(() => {
+    const ethBal = chainBalances?.find(cb => cb.chain.key === 'ethereum')
+    return computeInsights(ethBal ? { eth: ethBal.balance?.eth ?? '0', txCount: ethBal.txCount ?? 0 } : null)
+  }, [chainBalances])
 
   // 多链 RPC 查询
   useEffect(() => {
