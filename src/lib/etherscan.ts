@@ -1,20 +1,33 @@
 /**
- * Sepolia 实时数据服务 — Chronicle
+ * 多链实时数据服务 — Chronicle
  *
- * 通过 Sepolia 公共 RPC 获取真实链上数据。
- * 无需 API Key，零配置即可使用。
+ * 通过各链公共 RPC 获取真实链上数据。无需 API Key。
+ * 覆盖：Ethereum Sepolia / Arbitrum Sepolia / Base Sepolia / Optimism Sepolia
  * 无网络或 RPC 异常时返回 null，调用方降级为 mock 数据。
  */
 
-// ---------- 配置 ----------
+// ---------- 链配置 ----------
 
-const SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com'
+export interface ChainInfo {
+  key: string
+  name: string
+  rpc: string
+  chainId: number
+}
+
+export const CHAINS: ChainInfo[] = [
+  { key: 'ethereum',  name: 'Ethereum',  rpc: 'https://ethereum-sepolia-rpc.publicnode.com',      chainId: 11155111 },
+  { key: 'arbitrum',  name: 'Arbitrum',  rpc: 'https://sepolia-rollup.arbitrum.io/rpc',            chainId: 421614 },
+  { key: 'base',      name: 'Base',      rpc: 'https://sepolia.base.org',                            chainId: 84532 },
+  { key: 'optimism',  name: 'Optimism',  rpc: 'https://sepolia.optimism.io',                         chainId: 11155420 },
+]
+
 const DEMO_ADDRESS = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94'
 
 // ---------- 缓存 ----------
 
 const cache = new Map<string, { data: unknown; ts: number }>()
-const CACHE_TTL = 30_000 // 30 秒
+const CACHE_TTL = 30_000
 
 function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   const entry = cache.get(key)
@@ -25,27 +38,26 @@ function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   })
 }
 
-// ---------- JSON-RPC 调用 ----------
+// ---------- JSON-RPC ----------
 
-let rpcAvailable: boolean | null = null
+const chainStatus = new Map<string, boolean>()
 
-async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
+async function rpcCall(chain: ChainInfo, method: string, params: unknown[]): Promise<unknown> {
   try {
-    const res = await fetch(SEPOLIA_RPC, {
+    const res = await fetch(chain.rpc, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
     })
     const json = await res.json()
     if (json.error) {
-      console.warn('RPC 错误:', json.error)
+      chainStatus.set(chain.key, false)
       return null
     }
-    rpcAvailable = true
+    chainStatus.set(chain.key, true)
     return json.result
-  } catch (err) {
-    console.warn('RPC 请求失败:', err)
-    rpcAvailable = false
+  } catch {
+    chainStatus.set(chain.key, false)
     return null
   }
 }
@@ -57,38 +69,47 @@ export interface LiveBalance {
   wei: string
 }
 
-export interface NetworkInfo {
-  blockNumber: number
-  gasPrice: string // gwei
+export interface ChainBalance {
+  chain: ChainInfo
+  balance: LiveBalance | null
+  txCount: number | null
 }
 
-// ---------- 公开方法 ----------
+export interface NetworkInfo {
+  blockNumber: number
+  gasPrice: string
+}
 
-/** 获取地址 ETH 余额 */
-export async function fetchEthBalance(address: string = DEMO_ADDRESS): Promise<LiveBalance | null> {
-  return cached(`bal:${address}`, async () => {
-    const wei = await rpcCall('eth_getBalance', [address, 'latest'])
+// ---------- 单链查询 ----------
+
+export async function fetchEthBalance(
+  address: string = DEMO_ADDRESS,
+  chain: ChainInfo = CHAINS[0],
+): Promise<LiveBalance | null> {
+  return cached(`bal:${chain.key}:${address}`, async () => {
+    const wei = await rpcCall(chain, 'eth_getBalance', [address, 'latest'])
     if (typeof wei !== 'string') return null
     const eth = (Number(BigInt(wei)) / 1e18).toFixed(6)
     return { eth, wei }
   })
 }
 
-/** 获取地址交易计数 (nonce) */
-export async function fetchTxCount(address: string = DEMO_ADDRESS): Promise<number | null> {
-  return cached(`nonce:${address}`, async () => {
-    const count = await rpcCall('eth_getTransactionCount', [address, 'latest'])
+export async function fetchTxCount(
+  address: string = DEMO_ADDRESS,
+  chain: ChainInfo = CHAINS[0],
+): Promise<number | null> {
+  return cached(`nonce:${chain.key}:${address}`, async () => {
+    const count = await rpcCall(chain, 'eth_getTransactionCount', [address, 'latest'])
     if (typeof count !== 'string') return null
     return parseInt(count, 16)
   })
 }
 
-/** 获取网络信息（区块高度 + Gas Price） */
-export async function fetchNetworkInfo(): Promise<NetworkInfo | null> {
-  return cached('network', async () => {
+export async function fetchNetworkInfo(chain: ChainInfo = CHAINS[0]): Promise<NetworkInfo | null> {
+  return cached(`network:${chain.key}`, async () => {
     const [blockNum, gasPrice] = await Promise.all([
-      rpcCall('eth_blockNumber', []),
-      rpcCall('eth_gasPrice', []),
+      rpcCall(chain, 'eth_blockNumber', []),
+      rpcCall(chain, 'eth_gasPrice', []),
     ])
     if (typeof blockNum !== 'string' || typeof gasPrice !== 'string') return null
     return {
@@ -98,16 +119,42 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo | null> {
   })
 }
 
-/** RPC 连接状态 */
-export function isRpcAvailable(): boolean {
-  return rpcAvailable === true
+// ---------- 多链聚合查询 ----------
+
+/** 查询地址在所有链上的余额 + 交易数 */
+export async function fetchAllChainBalances(
+  address: string = DEMO_ADDRESS,
+): Promise<ChainBalance[]> {
+  const key = `all:${address}`
+  return cached(key, async () => {
+    const results = await Promise.all(
+      CHAINS.map(async (chain) => {
+        const [balance, txCount] = await Promise.all([
+          fetchEthBalance(address, chain),
+          fetchTxCount(address, chain),
+        ])
+        return { chain, balance, txCount }
+      }),
+    )
+    return results
+  })
 }
 
-/** 清除缓存（切换网络等场景） */
+/** 每条链的 RPC 可用状态 */
+export function getChainStatus(): Record<string, boolean> {
+  const status: Record<string, boolean> = {}
+  CHAINS.forEach((c) => { status[c.key] = chainStatus.get(c.key) ?? false })
+  return status
+}
+
+/** 至少有一条链的 RPC 可用 */
+export function isRpcAvailable(): boolean {
+  return CHAINS.some((c) => chainStatus.get(c.key) === true)
+}
+
 export function clearCache(): void {
   cache.clear()
-  rpcAvailable = null
+  chainStatus.clear()
 }
 
-/** 演示钱包地址 */
 export { DEMO_ADDRESS }

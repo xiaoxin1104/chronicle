@@ -4,7 +4,7 @@ import { SectionPanel } from '@repo/ui/components/section-panel'
 import { walletAssets, totalBalance, totalChange, chronicleEvents } from '../../data/mock'
 import { isDemoWalletReady } from '../../lib/token-core'
 import { hasApiKey } from '../../lib/ai-service'
-import { fetchEthBalance, fetchNetworkInfo, isRpcAvailable, DEMO_ADDRESS, type LiveBalance, type NetworkInfo } from '../../lib/etherscan'
+import { fetchAllChainBalances, fetchNetworkInfo, isRpcAvailable, DEMO_ADDRESS, CHAINS, type ChainBalance, type NetworkInfo } from '../../lib/etherscan'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -68,20 +68,23 @@ export default function DashboardPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputVal, setInputVal] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const [liveBalance, setLiveBalance] = useState<LiveBalance | null>(null)
+  const [chainBalances, setChainBalances] = useState<ChainBalance[] | null>(null)
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null)
-  const [rpcReady, setRpcReady] = useState<boolean | null>(null) // null=检查中
+  const [rpcReady, setRpcReady] = useState<boolean | null>(null)
+  const [connectedChains, setConnectedChains] = useState(0)
   const apiConnected = hasApiKey()
   const demoReady = isDemoWalletReady()
 
   const insights = useMemo(computeInsights, [])
 
-  // 自动连接 Sepolia RPC
+  // 多链 RPC 查询
   useEffect(() => {
-    Promise.all([fetchEthBalance(), fetchNetworkInfo()]).then(([bal, net]) => {
-      setLiveBalance(bal)
+    Promise.all([fetchAllChainBalances(), fetchNetworkInfo()]).then(([balances, net]) => {
+      setChainBalances(balances)
       setNetworkInfo(net)
-      setRpcReady(bal !== null && net !== null)
+      const connected = balances.filter(b => b.balance !== null).length
+      setConnectedChains(connected)
+      setRpcReady(connected > 0)
     })
   }, [])
 
@@ -121,7 +124,7 @@ export default function DashboardPage() {
           </span>
           <span className="text-caption text-muted-foreground">·</span>
           <span className={`text-caption font-medium ${rpcReady ? 'text-success-text' : rpcReady === false ? 'text-muted-foreground' : 'text-warning-text'}`}>
-            {rpcReady ? `Sepolia #${networkInfo?.blockNumber?.toLocaleString() ?? ''}` : rpcReady === false ? 'Sepolia 测试网' : '连接 RPC...'}
+            {rpcReady ? `${connectedChains}/${CHAINS.length} 链实时 #${networkInfo?.blockNumber?.toLocaleString() ?? ''}` : rpcReady === false ? '多链测试网' : '连接 RPC...'}
           </span>
           <span className="text-caption text-muted-foreground">·</span>
           <span className={`text-caption font-medium ${apiConnected ? 'text-success-text' : 'text-muted-foreground'}`}>
@@ -255,28 +258,36 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle>资产概览</CardTitle>
               <div className="flex items-center gap-2">
-                {rpcReady && liveBalance && (
-                  <Badge variant="success" size="sm">链上</Badge>
+                {rpcReady && (
+                  <Badge variant="success" size="sm">{connectedChains}/{CHAINS.length} 链</Badge>
                 )}
                 <Badge variant="positive" size="sm">{totalChange}</Badge>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {rpcReady && liveBalance ? (
+            {rpcReady && chainBalances ? (
               <>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-title-md font-bold">{liveBalance.eth} ETH</p>
-                  <span className="text-caption text-muted-foreground">Sepolia 实时</span>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {chainBalances.map((cb) => (
+                    <div key={cb.chain.key} className={`rounded-xl px-3 py-2 text-center border ${
+                      cb.balance && Number(cb.balance.eth) > 0 ? 'border-success/20 bg-success-surface/30' : 'border-border bg-surface-cool'
+                    }`}>
+                      <div className="text-caption text-muted-foreground">{cb.chain.name}</div>
+                      <div className={`text-body-sm font-bold ${cb.balance && Number(cb.balance.eth) > 0 ? 'text-success-text' : 'text-muted-foreground'}`}>
+                        {cb.balance ? `${cb.balance.eth} ETH` : '—'}
+                      </div>
+                      <div className="text-2xs text-muted-foreground">
+                        {cb.txCount !== null ? `${cb.txCount} 笔` : ''}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <p className="text-caption text-muted-foreground font-mono">
-                    {DEMO_ADDRESS}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-caption text-muted-foreground font-mono">{DEMO_ADDRESS.slice(0, 12)}...{DEMO_ADDRESS.slice(-6)}</p>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(DEMO_ADDRESS)
-                      // dynamic import for toast
                       import('@repo/ui/components/toast').then(m => m.toast('已复制地址', { description: '转账前请核对完整地址' }))
                     }}
                     className="shrink-0 rounded-lg px-2 py-1 text-caption text-[#007fff] hover:bg-[#007fff]/10 transition-colors"
@@ -285,10 +296,8 @@ export default function DashboardPage() {
                     📋
                   </button>
                 </div>
-                <p className="mt-3 text-caption text-muted-foreground">
-                  {Number(liveBalance.eth) === 0
-                    ? '↑ 此演示地址暂无 Sepolia ETH。可前往 sepoliafaucet.com 获取测试币 · '
-                    : '↑ 以上为 Sepolia 实时链上数据 · '}
+                <p className="mt-2 text-caption text-muted-foreground">
+                  ↑ {connectedChains}/{CHAINS.length} 条链实时数据 ·{' '}
                   <button onClick={() => navigate('/assistant')} className="text-[#007fff] hover:underline font-medium">
                     让 AI 分析 →
                   </button>
