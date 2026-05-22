@@ -18,6 +18,7 @@ import {
   type AIResponse,
   type WalletIntent,
 } from '../../lib/ai-service'
+import type { TransferIntent, CapsuleIntent, DepositIntent, SwapIntent } from '../../lib/ai-service'
 import { cn } from '../../lib/utils'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
@@ -684,10 +685,33 @@ export default function AssistantPage() {
       }
 
       if (result.success) {
-        updateMsg({
-          intentStatus: 'success',
-          intentResult: result.data?.txHash || result.data?.signature || '已签名',
-        })
+        const txHash = result.data?.txHash || result.data?.signature || '已签名'
+        updateMsg({ intentStatus: 'success', intentResult: txHash })
+
+        // AI 主动跟进：生成交易后叙事和下一步建议
+        if (hasApiKey()) {
+          const intentDesc = intent.type === 'transfer'
+            ? `转账 ${intent.params.amount} ${intent.params.asset} 给 ${(intent.params as { to: string }).to.slice(0, 10)}...`
+            : intent.type === 'capsule'
+              ? `创建时间胶囊：锁定 ${intent.params.amount} ${intent.params.asset} 到 ${(intent.params as { unlockDate: string }).unlockDate.slice(0, 10)}`
+              : intent.type === 'deposit'
+                ? `存入 ${intent.params.amount} ${intent.params.asset} 到 ${(intent.params as { protocol: string }).protocol}`
+                : intent.type === 'swap'
+                  ? `兑换 ${intent.params.amount} ${intent.params.fromAsset} → ${(intent.params as { toAsset: string }).toAsset}`
+                  : intent.type
+          const followUpPrompt = `用户刚刚确认了一笔交易并签名完成：${intentDesc}。交易哈希：${txHash}。请作为Chronicle AI助手，用2-3句话：1）叙事化解读这笔交易的意义 2）基于用户当前资产状况（总资产约$29,310，含ETH/BTC/USDC等），给出1个下一步建议。温暖、简洁，像朋友聊天。`
+          sendMessageStream(followUpPrompt, () => {}).then((resp) => {
+            if (resp.content) {
+              setMessages((prev) => [...prev, {
+                id: `followup-${Date.now()}`,
+                role: 'assistant',
+                content: resp.content,
+                timestamp: new Date().toISOString(),
+                riskLevel: 'info',
+              }])
+            }
+          })
+        }
       } else {
         updateMsg({
           intentStatus: 'failed',
