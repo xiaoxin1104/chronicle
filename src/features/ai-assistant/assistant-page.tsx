@@ -450,14 +450,8 @@ export default function AssistantPage() {
       const run = async () => {
         for (let i = 0; i < steps.length; i++) {
           await new Promise(r => setTimeout(r, i === 0 ? 500 : 2000))
-          handleSendRef.current(steps[i])
-          // 等待上一步完成（poll isProcessing via ref）
-          await new Promise(r => {
-            const check = setInterval(() => {
-              if (!isProcessingRef.current) { clearInterval(check); r(undefined) }
-            }, 300)
-            setTimeout(() => { clearInterval(check); r(undefined) }, 20000)
-          })
+          // 直接 await handleSend 的返回 Promise，它完成才推进下一步
+          await handleSendRef.current(steps[i])
         }
         isDemoRef.current = false
       }
