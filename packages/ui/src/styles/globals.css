@@ -1,0 +1,644 @@
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource-variable/noto-sans";
+@import "@fontsource/noto-sans-sc/400.css";
+@import "@fontsource/noto-sans-sc/600.css";
+@import "@fontsource/noto-sans-sc/700.css";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+@source "../../../../src/**/*.{ts,tsx}";
+@source "../**/*.{ts,tsx}";
+
+:root {
+  /* Surfaces */
+  --background: rgb(255 255 255);
+  --foreground: rgb(17 29 74);
+  --card: rgb(248 249 250);
+  --card-foreground: rgb(17 29 74);
+  --popover: rgb(248 249 250);
+  --popover-foreground: rgb(17 29 74);
+
+  /* Actions */
+  --primary: rgb(0 127 255);
+  --primary-hover: rgb(0 108 217);
+  --primary-active: rgb(0 82 165);
+  --primary-disabled: rgb(162 205 247);
+  --primary-soft: rgb(207 228 250);
+  --primary-foreground: rgb(255 255 255);
+  --secondary: rgb(240 241 243);
+  --secondary-foreground: rgb(17 29 74);
+  --accent: rgb(231 241 252);
+  --accent-foreground: rgb(17 29 74);
+  --muted: rgb(248 249 250);
+  --muted-foreground: rgb(153 161 175);
+  --destructive: rgb(243 99 111);
+  --destructive-hover: rgb(242 36 53);
+  --destructive-foreground: rgb(255 255 255);
+
+  /* Borders & focus */
+  --border: rgb(236 237 241);
+  --border-strong: rgb(207 210 219);
+  --border-subtle: rgb(236 237 241);
+  --input: rgb(240 241 243);
+  --ring: rgb(0 127 255);
+  --input-background: rgb(240 241 243);
+  --switch-background: rgb(207 210 219);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Brand aliases */
+  --brand: rgb(0 127 255);
+  --brand-secondary: rgb(12 197 255);
+  --brand-hover: rgb(0 108 217);
+  --brand-deep: rgb(17 29 74);
+
+  /* Surface aliases */
+  --surface-page: rgb(255 255 255);
+  --surface-blue: rgb(231 241 252);
+  --surface-blue-light: rgb(207 228 250);
+  --surface-blue-dim: rgb(162 205 247);
+  --surface-blue-info: rgb(208 240 250);
+  --surface-cool: rgb(248 249 250);
+  --surface-light: rgba(240, 241, 243, 0.96);
+  --surface-ai-tinted: rgb(245 243 254);
+  --surface-glass-page: rgba(255, 255, 255, 0.96);
+  --surface-glass-elevated: rgba(240, 241, 243, 0.96);
+  --surface-glass-modal: rgba(240, 241, 243, 0.96);
+  --dark-surface: rgba(17, 29, 74, 0.85);
+
+  /* Feedback */
+  --success: rgb(75 206 113);
+  --success-foreground: rgb(255 255 255);
+  --success-text: rgb(34 142 66);
+  --success-surface: rgb(218 241 225);
+  --success-border: rgb(138 218 161);
+  --success-surface-tint: rgb(218 241 225);
+  --warning: rgb(252 140 77);
+  --warning-text: rgb(199 71 0);
+  --warning-surface: rgb(250 227 215);
+  --warning-border: rgb(246 168 124);
+  --danger-border: rgb(239 134 143);
+  --error-text: rgb(196 9 24);
+  --error-surface: rgb(248 218 220);
+  --info: rgb(12 197 255);
+  --info-surface: rgb(208 240 250);
+  --info-border: rgb(12 197 255);
+
+  /* Transaction states */
+  --positive: rgb(75 206 113);
+  --positive-surface: rgb(218 241 225);
+  --tx-pending: rgb(252 140 77);
+  --tx-confirmed: rgb(75 206 113);
+  --tx-failed: rgb(243 99 111);
+  --tx-dropped: rgb(153 161 175);
+
+  /* Text extras */
+  --text-secondary-gray: rgb(107 114 128);
+  --text-tertiary: rgb(153 161 175);
+  --text-disabled: rgb(207 210 219);
+  --text-inverse: rgb(255 255 255);
+  --text-ai: rgb(109 40 217);
+
+  /* AI */
+  --ai-primary: rgb(167 139 250);
+  --ai-subtle-bg: rgb(245 243 254);
+  --ai-subtle-border: rgb(237 233 254);
+  --ai-emphasis: rgb(143 92 241);
+  --ai-text: rgb(109 40 217);
+  --ai-icon: rgb(167 139 250);
+
+  /* Track colors */
+  --progress-track: rgb(236 237 241);
+
+  /* Charts (brand-derived) */
+  --chart-1: rgb(0 127 255);
+  --chart-2: rgb(12 197 255);
+  --chart-3: rgb(0 108 217);
+  --chart-4: rgb(248 249 250);
+  --chart-5: rgb(17 29 74);
+
+  /* Radius */
+  --radius: 12px;
+
+  /* Shadows */
+  --shadow-card-color: rgba(17, 29, 74, 0.08);
+  --shadow-cta-color: rgba(0, 127, 255, 0.2);
+  --shadow-dialog-color: rgba(17, 29, 74, 0.16);
+  --shadow-card: 0 8px 24px color-mix(in srgb, var(--shadow-card-color) 55%, transparent);
+  --shadow-card-md: 0 12px 32px color-mix(in srgb, var(--shadow-card-color) 70%, transparent);
+  --shadow-card-lg: 0 24px 56px color-mix(in srgb, var(--shadow-card-color) 75%, transparent);
+  --shadow-cta-sm: 0 6px 16px color-mix(in srgb, var(--shadow-cta-color) 80%, transparent);
+  --shadow-cta: 0 12px 28px var(--shadow-cta-color);
+  --shadow-cta-lg: 0 20px 48px color-mix(in srgb, var(--shadow-cta-color) 120%, transparent);
+  --shadow-icon: 0 10px 28px color-mix(in srgb, var(--shadow-card-color) 70%, transparent);
+  --shadow-dialog: 0 24px 60px var(--shadow-dialog-color);
+  --shadow-nav-active: 0 10px 24px color-mix(in srgb, var(--shadow-cta-color) 90%, transparent);
+
+  /* Density */
+  --density-compact-y: 8px;
+  --density-compact-x: 12px;
+  --density-comfortable-y: 16px;
+  --density-comfortable-x: 24px;
+  --density-spacious-y: 24px;
+  --density-spacious-x: 32px;
+  --density-airy-y: 32px;
+  --density-airy-x: 48px;
+
+  /* Motion */
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 240ms;
+  --duration-soft: 360ms;
+  --duration-hero: 500ms;
+
+  /* Sidebar */
+  --sidebar: rgb(255 255 255);
+  --sidebar-foreground: rgb(17 29 74);
+  --sidebar-primary: rgb(0 127 255);
+  --sidebar-primary-foreground: rgb(255 255 255);
+  --sidebar-accent: rgb(240 241 243);
+  --sidebar-accent-foreground: rgb(17 29 74);
+  --sidebar-border: rgb(236 237 241);
+  --sidebar-ring: rgb(0 127 255);
+}
+
+.dark {
+  /* Surfaces */
+  --background: rgb(12 22 55);
+  --foreground: rgb(255 255 255);
+  --card: rgb(15 26 67);
+  --card-foreground: rgb(255 255 255);
+  --popover: rgb(15 26 67);
+  --popover-foreground: rgb(255 255 255);
+
+  /* Actions */
+  --primary: rgb(44 146 250);
+  --primary-hover: rgb(0 127 255);
+  --primary-active: rgb(0 108 217);
+  --primary-disabled: rgb(0 76 153);
+  --primary-soft: rgb(0 76 153);
+  --primary-foreground: rgb(255 255 255);
+  --secondary: rgb(15 26 67);
+  --secondary-foreground: rgb(255 255 255);
+  --accent: rgb(0 76 153);
+  --accent-foreground: rgb(255 255 255);
+  --muted: rgb(12 22 55);
+  --muted-foreground: rgb(207 210 219);
+  --destructive: rgb(239 98 110);
+  --destructive-hover: rgb(243 99 111);
+  --destructive-foreground: rgb(255 255 255);
+
+  /* Borders & focus */
+  --border: rgb(77 86 119);
+  --border-strong: rgb(153 161 175);
+  --border-subtle: rgb(17 29 74);
+  --input: rgb(8 14 37);
+  --ring: rgb(44 146 250);
+  --input-background: rgb(8 14 37);
+  --switch-background: rgb(77 86 119);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Brand aliases */
+  --brand: rgb(44 146 250);
+  --brand-secondary: rgb(50 202 250);
+  --brand-hover: rgb(0 127 255);
+  --brand-deep: rgb(136 142 164);
+
+  /* Surface aliases */
+  --surface-page: rgb(12 22 55);
+  --surface-blue: rgb(0 41 82);
+  --surface-blue-light: rgb(0 76 153);
+  --surface-blue-dim: rgb(0 82 165);
+  --surface-blue-info: rgb(0 96 126);
+  --surface-cool: rgb(12 22 55);
+  --surface-light: rgba(15, 26, 67, 0.85);
+  --surface-ai-tinted: rgb(76 29 149);
+  --surface-glass-page: rgba(17, 29, 74, 0.85);
+  --surface-glass-elevated: rgba(15, 26, 67, 0.85);
+  --surface-glass-modal: rgba(15, 26, 67, 0.85);
+  --dark-surface: rgba(17, 29, 74, 0.85);
+
+  /* Feedback */
+  --success: rgb(98 208 130);
+  --success-foreground: rgb(255 255 255);
+  --success-text: rgb(98 208 130);
+  --success-surface: rgb(45 124 68);
+  --success-border: rgb(48 187 88);
+  --success-surface-tint: rgb(45 124 68);
+  --warning: rgb(248 142 83);
+  --warning-text: rgb(248 142 83);
+  --warning-surface: rgb(151 84 46);
+  --warning-border: rgb(255 101 14);
+  --danger-border: rgb(242 36 53);
+  --error-text: rgb(239 98 110);
+  --error-surface: rgb(146 59 67);
+  --info: rgb(50 202 250);
+  --info-surface: rgb(0 96 126);
+  --info-border: rgb(50 202 250);
+
+  /* Transaction states */
+  --positive: rgb(98 208 130);
+  --positive-surface: rgb(45 124 68);
+  --tx-pending: rgb(248 142 83);
+  --tx-confirmed: rgb(98 208 130);
+  --tx-failed: rgb(239 98 110);
+  --tx-dropped: rgb(207 210 219);
+
+  /* Text extras */
+  --text-secondary-gray: rgb(221 222 234);
+  --text-tertiary: rgb(207 210 219);
+  --text-disabled: rgb(107 114 128);
+  --text-inverse: rgb(17 29 74);
+  --text-ai: rgb(196 181 253);
+
+  /* AI */
+  --ai-primary: rgb(167 139 250);
+  --ai-subtle-bg: rgb(76 29 149);
+  --ai-subtle-border: rgb(91 33 182);
+  --ai-emphasis: rgb(143 92 241);
+  --ai-text: rgb(196 181 253);
+  --ai-icon: rgb(167 139 250);
+
+  /* Track colors */
+  --progress-track: rgb(17 29 74);
+
+  /* Charts */
+  --chart-1: rgb(44 146 250);
+  --chart-2: rgb(50 202 250);
+  --chart-3: rgb(0 127 255);
+  --chart-4: rgb(12 22 55);
+  --chart-5: rgb(136 142 164);
+
+  /* Shadows */
+  --shadow-card-color: rgba(0, 0, 0, 0.24);
+  --shadow-cta-color: rgba(0, 127, 255, 0.3);
+  --shadow-dialog-color: rgba(0, 0, 0, 0.4);
+
+  /* Density */
+  --density-compact-y: 8px;
+  --density-compact-x: 12px;
+  --density-comfortable-y: 16px;
+  --density-comfortable-x: 24px;
+  --density-spacious-y: 24px;
+  --density-spacious-x: 32px;
+  --density-airy-y: 32px;
+  --density-airy-x: 48px;
+
+  /* Sidebar */
+  --sidebar: rgb(12 22 55);
+  --sidebar-foreground: rgb(255 255 255);
+  --sidebar-primary: rgb(44 146 250);
+  --sidebar-primary-foreground: rgb(255 255 255);
+  --sidebar-accent: rgb(15 26 67);
+  --sidebar-accent-foreground: rgb(255 255 255);
+  --sidebar-border: rgb(77 86 119);
+  --sidebar-ring: rgb(44 146 250);
+}
+
+@theme inline {
+  /* Colors — semantic */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-disabled: var(--primary-disabled);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-subtle: var(--border-subtle);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Colors — brand aliases */
+  --color-brand: var(--brand);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-deep: var(--brand-deep);
+  --color-surface-cool: var(--surface-cool);
+  --color-surface-light: var(--surface-light);
+  --color-surface-ai-tinted: var(--surface-ai-tinted);
+  --color-surface-glass-page: var(--surface-glass-page);
+  --color-surface-glass-elevated: var(--surface-glass-elevated);
+  --color-surface-glass-modal: var(--surface-glass-modal);
+  --color-dark-surface: var(--dark-surface);
+
+  /* Colors — prototype surfaces */
+  --color-surface-page: var(--surface-page);
+  --color-surface-blue: var(--surface-blue);
+  --color-surface-blue-light: var(--surface-blue-light);
+  --color-surface-blue-dim: var(--surface-blue-dim);
+  --color-surface-blue-info: var(--surface-blue-info);
+
+  /* Colors — success palette */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
+  --color-success-surface: var(--success-surface);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-border: var(--warning-border);
+  --color-danger-border: var(--danger-border);
+  --color-error-text: var(--error-text);
+  --color-error-surface: var(--error-surface);
+  --color-info: var(--info);
+  --color-info-surface: var(--info-surface);
+
+  /* Colors — positive (P&L) */
+  --color-positive: var(--positive);
+  --color-positive-surface: var(--positive-surface);
+  --color-tx-pending: var(--tx-pending);
+  --color-tx-confirmed: var(--tx-confirmed);
+  --color-tx-failed: var(--tx-failed);
+  --color-tx-dropped: var(--tx-dropped);
+
+  /* Colors — text extras */
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-secondary-gray: var(--text-secondary-gray);
+  --color-text-disabled: var(--text-disabled);
+  --color-text-inverse: var(--text-inverse);
+  --color-text-ai: var(--text-ai);
+
+  /* Colors — AI */
+  --color-ai-primary: var(--ai-primary);
+  --color-ai-subtle-bg: var(--ai-subtle-bg);
+  --color-ai-subtle-border: var(--ai-subtle-border);
+  --color-ai-emphasis: var(--ai-emphasis);
+  --color-ai-text: var(--ai-text);
+  --color-ai-icon: var(--ai-icon);
+
+  /* Colors — state surfaces & borders */
+  --color-success-surface-tint: var(--success-surface-tint);
+  --color-info-border: var(--info-border);
+  --color-progress-track: var(--progress-track);
+
+  /* Colors — sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radius — explicit values from DESIGN.md §5 */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-3xl: 32px;
+  --radius-4xl: 9999px;
+  --radius-pill: 9999px;
+  --radius-full-pill: 9999px;
+
+  /* Radius — extended intermediate values from prototype */
+  --radius-10: 10px;
+  --radius-18: 18px;
+  --radius-20: 20px;
+  --radius-28: 28px;
+  --radius-34: 34px;
+
+  /* Fonts */
+  --font-sans: "Inter", "Noto Sans SC", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading: "Inter", "Noto Sans SC", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-prototype-sans: var(--font-sans);
+  --font-chinese: "Noto Sans SC", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Typography */
+  --tracking-tight: -0.4px;
+  --tracking-snug: -0.2px;
+  --tracking-normal: 0px;
+  --tracking-wide: 0.5px;
+  --tracking-wider: 0.8px;
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 3rem;
+  --text-title-lg: 1.75rem;
+  --text-title-lg--line-height: 2.25rem;
+  --text-title-md: 1.5rem;
+  --text-title-md--line-height: 2rem;
+  --text-title-sm: 1.25rem;
+  --text-title-sm--line-height: 1.75rem;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body-md: 0.875rem;
+  --text-body-md--line-height: 1.25rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-2xs: 0.6875rem;
+  --text-xs-plus: 0.8125rem;
+  --text-sm-plus: 0.9375rem;
+
+  /* Density */
+  --spacing-density-compact-y: var(--density-compact-y);
+  --spacing-density-compact-x: var(--density-compact-x);
+  --spacing-density-comfortable-y: var(--density-comfortable-y);
+  --spacing-density-comfortable-x: var(--density-comfortable-x);
+  --spacing-density-spacious-y: var(--density-spacious-y);
+  --spacing-density-spacious-x: var(--density-spacious-x);
+  --spacing-density-airy-y: var(--density-airy-y);
+  --spacing-density-airy-x: var(--density-airy-x);
+
+  /* Spacing — Tailwind v4 default 4px grid */
+  --spacing: 0.25rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    font-size: var(--text-title-lg);
+    font-weight: 700;
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--text-title-lg--line-height);
+  }
+
+  h2 {
+    font-size: var(--text-title-md);
+    font-weight: 700;
+    letter-spacing: var(--tracking-snug);
+    line-height: var(--text-title-md--line-height);
+  }
+
+  h3 {
+    font-size: var(--text-title-sm);
+    font-weight: 600;
+    letter-spacing: var(--tracking-normal);
+    line-height: var(--text-title-sm--line-height);
+  }
+
+  h4 {
+    font-size: var(--text-body-lg);
+    font-weight: 600;
+    line-height: var(--text-body-lg--line-height);
+  }
+
+  label {
+    font-size: var(--text-body-md);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--text-body-md--line-height);
+  }
+
+  button {
+    font-size: var(--text-body-md);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--text-body-md--line-height);
+  }
+
+  input {
+    font-size: var(--text-body-md);
+    font-weight: var(--font-weight-normal);
+    line-height: var(--text-body-md--line-height);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes scan-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+
+@keyframes identity-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.identity-gradient {
+  font-weight: 700;
+  background: linear-gradient(
+    90deg,
+    rgb(0 127 255),
+    rgb(0 56 173),
+    rgb(13 148 136),
+    rgb(0 127 255)
+  );
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: identity-gradient 3.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .identity-gradient {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: var(--primary);
+    color: var(--primary);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softBloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes countdownPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 127, 255, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(0, 127, 255, 0); }
+}
+
+@keyframes unlockSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes capsuleOpen {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+.animate-fade-up { animation: fadeUp 0.5s var(--ease-emphasis) forwards; }
+.animate-fade-in { animation: fadeIn 0.4s var(--ease-emphasis) forwards; }
+.animate-soft-bloom { animation: softBloom 0.6s var(--ease-emphasis) forwards; }
