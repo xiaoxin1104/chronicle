@@ -370,13 +370,13 @@ export default function AssistantPage() {
       {
         id: 'msg-01',
         role: 'assistant',
-        content: '你好！我是 Chronicle AI 守护助手 🤖\n\n我是你的链上伙伴，不只是聊天——我能真正帮你操作钱包：\n\n🎯 **Intent 交易** — 直接告诉我「转 0.1 ETH 给 0x...」，我会构建交易让你一键确认\n⏳ **创建时间胶囊** — 说「锁定 0.5 ETH 到 2027 年」就能创建\n🛡️ **风险分析** — 分析任何交易的安全风险\n📊 **资产管理** — 帮你理解资产分布和优化策略\n\n试试下面的快捷操作，或者直接告诉我你想做什么！',
+        content: '嗨！我是 Chronicle AI 守护助手 🤖\n\n我能听懂你的话，直接帮你操作钱包——转账、创建时间胶囊、分析资产，一句话就行。\n\n🔐 Token Core WASM 本地签名，私钥不离开你的设备\n⏳ 试试说「锁定 0.5 ETH 到 2027 年」体验时间胶囊\n\n👇 点下面试试，或者直接告诉我你想做什么！',
         timestamp: new Date().toISOString(),
         riskLevel: 'info',
         actions: [
-          { label: '💸 演示转账', action: 'demo_transfer' },
+          { label: '💸 一键转账', action: 'demo_transfer' },
           { label: '⏳ 创建时间胶囊', action: 'create_capsule' },
-          { label: '📊 资产分析', action: 'analyze_portfolio' },
+          { label: '🔄 换币 & 存款', action: 'demo_defi' },
         ],
       },
     ]
